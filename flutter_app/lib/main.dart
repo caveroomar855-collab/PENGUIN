@@ -8,6 +8,7 @@ import 'providers/clientes_provider.dart';
 import 'providers/alquileres_provider.dart';
 import 'providers/ventas_provider.dart';
 import 'providers/inventario_provider.dart';
+import 'providers/citas_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AlquileresProvider()),
         ChangeNotifierProvider(create: (_) => VentasProvider()),
         ChangeNotifierProvider(create: (_) => InventarioProvider()),
+        ChangeNotifierProvider(create: (_) => CitasProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

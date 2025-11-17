@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/ventas_provider.dart';
 import '../../models/venta.dart';
 import 'package:intl/intl.dart';
+import 'crear_venta_screen.dart';
 
 class VentasScreen extends StatefulWidget {
   const VentasScreen({super.key});
@@ -64,7 +65,10 @@ class _VentasScreenState extends State<VentasScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          _mostrarDialogoNuevaVenta();
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CrearVentaScreen()),
+          ).then((_) => _cargarDatos());
         },
         icon: const Icon(Icons.add_shopping_cart),
         label: const Text('Nueva Venta'),
@@ -108,22 +112,7 @@ class _VentasScreenState extends State<VentasScreen> {
             color: Colors.green,
           ),
         ),
-        onTap: () {
-          _mostrarDetalleVenta(venta);
-        },
       ),
-    );
-  }
-
-  Future<void> _mostrarDialogoNuevaVenta() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Funcionalidad de ventas en desarrollo')),
-    );
-  }
-
-  Future<void> _mostrarDetalleVenta(Venta venta) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Detalle de venta en desarrollo')),
     );
   }
 }

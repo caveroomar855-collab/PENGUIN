@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../providers/alquileres_provider.dart';
 import '../../providers/config_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -9,6 +8,7 @@ import '../../config/api_config.dart';
 import '../alquileres/alquileres_screen.dart';
 import '../ventas/ventas_screen.dart';
 import '../inventario/inventario_screen.dart';
+import '../citas/citas_screen.dart';
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
@@ -136,13 +136,11 @@ class _InicioScreenState extends State<InicioScreen> {
                           'Citas',
                           Icons.calendar_today,
                           Colors.purple,
-                          () {
-                            // TODO: Implementar pantalla de citas
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Función en desarrollo')),
-                            );
-                          },
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const CitasScreen()),
+                          ),
                         ),
                       ],
                     ),

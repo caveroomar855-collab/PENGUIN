@@ -18,6 +18,7 @@ const ventasRoutes = require('./routes/ventas');
 const inventarioRoutes = require('./routes/inventario');
 const reportesRoutes = require('./routes/reportes');
 const configuracionRoutes = require('./routes/configuracion');
+const citasRoutes = require('./routes/citas');
 
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/alquileres', alquileresRoutes);
@@ -25,6 +26,7 @@ app.use('/api/ventas', ventasRoutes);
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/configuracion', configuracionRoutes);
+app.use('/api/citas', citasRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
