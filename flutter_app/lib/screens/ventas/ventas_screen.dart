@@ -112,7 +112,223 @@ class _VentasScreenState extends State<VentasScreen> {
             color: Colors.green,
           ),
         ),
+        onTap: () => _mostrarDetalleVenta(venta),
       ),
     );
+  }
+
+  void _mostrarDetalleVenta(Venta venta) {
+    final currencyFormat =
+        NumberFormat.currency(symbol: 'S/ ', decimalDigits: 2);
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Detalle de Venta'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Información del cliente
+              _buildDetalleSeccion('CLIENTE'),
+              _buildDetalleRow('Nombre:', venta.cliente?.nombre ?? 'N/A'),
+              _buildDetalleRow('DNI:', venta.cliente?.dni ?? 'N/A'),
+              _buildDetalleRow('Teléfono:', venta.cliente?.telefono ?? 'N/A'),
+
+              const Divider(height: 24),
+
+              // Información de la venta
+              _buildDetalleSeccion('VENTA'),
+              if (venta.createdAt != null)
+                _buildDetalleRow('Fecha:', dateFormat.format(venta.createdAt!)),
+              _buildDetalleRow(
+                'Método de Pago:',
+                _getMetodoPagoTexto(venta.metodoPago),
+              ),
+              _buildDetalleRow(
+                'Estado:',
+                venta.isDevuelta ? 'Devuelta' : 'Completada',
+                color: venta.isDevuelta ? Colors.orange : Colors.green,
+              ),
+              if (venta.fechaDevolucion != null)
+                _buildDetalleRow(
+                  'Fecha Devolución:',
+                  dateFormat.format(venta.fechaDevolucion!),
+                ),
+
+              const Divider(height: 24),
+
+              // Artículos
+              _buildDetalleSeccion('ARTÍCULOS'),
+              const SizedBox(height: 8),
+              ...venta.articulos.map((art) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.shopping_bag,
+                            size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                art.articulo?.nombre ?? 'Artículo',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500),
+                              ),
+                              if (art.articulo != null)
+                                Text(
+                                  '${art.articulo!.codigo} - ${art.articulo!.tipo.toUpperCase()}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          currencyFormat.format(art.precio),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  )),
+
+              const Divider(height: 24),
+
+              // Total
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'TOTAL:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    currencyFormat.format(venta.total),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          if (venta.puedeDevolver)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _confirmarDevolucion(venta);
+              },
+              child: const Text('Procesar Devolución'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetalleSeccion(String titulo) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        titulo,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.blue,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetalleRow(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMetodoPagoTexto(String metodo) {
+    switch (metodo) {
+      case 'efectivo':
+        return 'Efectivo';
+      case 'tarjeta':
+        return 'Tarjeta';
+      case 'yape':
+        return 'Yape/Plin';
+      case 'transferencia':
+        return 'Transferencia';
+      default:
+        return metodo;
+    }
+  }
+
+  Future<void> _confirmarDevolucion(Venta venta) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Devolución'),
+        content: const Text(
+          '¿Está seguro de procesar la devolución de esta venta?\n\n'
+          'Los artículos volverán al inventario.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Confirmar Devolución'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      final provider = Provider.of<VentasProvider>(context, listen: false);
+      final resultado = await provider.procesarDevolucion(venta.id!);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resultado['success'] == true
+                ? 'Devolución procesada exitosamente'
+                : 'Error al procesar devolución: ${resultado['error'] ?? 'Desconocido'}'),
+            backgroundColor:
+                resultado['success'] == true ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

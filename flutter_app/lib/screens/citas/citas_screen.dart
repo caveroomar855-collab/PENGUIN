@@ -110,9 +110,11 @@ class _CitasScreenState extends State<CitasScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
+        // Filtrar citas completadas y canceladas, ordenar por fecha descendente
         final historial = provider.citas
             .where((c) => c.esCompletada || c.esCancelada)
-            .toList();
+            .toList()
+          ..sort((a, b) => b.fechaHora.compareTo(a.fechaHora));
 
         if (historial.isEmpty) {
           return const Center(

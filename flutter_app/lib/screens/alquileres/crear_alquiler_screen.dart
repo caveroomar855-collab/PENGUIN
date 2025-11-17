@@ -7,6 +7,7 @@ import '../../models/cliente.dart';
 import '../../models/articulo.dart';
 import '../../models/traje.dart';
 import 'package:intl/intl.dart';
+import '../../utils/validators.dart';
 
 class CrearAlquilerScreen extends StatefulWidget {
   const CrearAlquilerScreen({super.key});
@@ -285,8 +286,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                   _buscarClientePorDni();
                 }
               },
-              validator: (v) =>
-                  v == null || v.length != 8 ? 'Ingrese DNI válido' : null,
+              validator: Validators.validateDni,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -296,8 +296,8 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person),
               ),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Ingrese el nombre' : null,
+              validator: Validators.validateNombre,
+              textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -306,10 +306,11 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                 labelText: 'Teléfono',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.phone),
+                helperText: '9 dígitos, inicia con 9',
               ),
               keyboardType: TextInputType.phone,
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Ingrese el teléfono' : null,
+              maxLength: 9,
+              validator: Validators.validateTelefono,
             ),
           ],
         ),

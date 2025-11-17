@@ -748,7 +748,8 @@ class _InventarioScreenState extends State<InventarioScreen>
                     keyboardType: TextInputType.number,
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
-                      if (parsed != null && parsed <= articulo.cantidadMantenimiento) {
+                      if (parsed != null &&
+                          parsed <= articulo.cantidadMantenimiento) {
                         setDialogState(() => cantidad = parsed);
                       }
                     },
@@ -799,7 +800,9 @@ class _InventarioScreenState extends State<InventarioScreen>
                     keyboardType: TextInputType.number,
                     onChanged: (value) {
                       final parsed = int.tryParse(value);
-                      if (parsed != null && parsed > 0 && parsed <= articulo.cantidadDisponible) {
+                      if (parsed != null &&
+                          parsed > 0 &&
+                          parsed <= articulo.cantidadDisponible) {
                         setDialogState(() => cantidad = parsed);
                       }
                     },
@@ -856,10 +859,10 @@ class _InventarioScreenState extends State<InventarioScreen>
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      if (cantidad <= 0 || cantidad > articulo.cantidadDisponible) {
+                      if (cantidad <= 0 ||
+                          cantidad > articulo.cantidadDisponible) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Cantidad inválida')),
+                          const SnackBar(content: Text('Cantidad inválida')),
                         );
                         return;
                       }

@@ -148,6 +148,10 @@ router.post('/:id/devolucion', async (req, res) => {
   try {
     const { articulos, retener_garantia, descripcion_retencion } = req.body;
 
+    console.log('=== PROCESAR DEVOLUCIÓN ===');
+    console.log('Alquiler ID:', req.params.id);
+    console.log('Artículos a devolver:', articulos);
+
     // Obtener alquiler
     const { data: alquiler, error: alquilerError } = await supabase
       .from('alquileres')
@@ -164,6 +168,8 @@ router.post('/:id/devolucion', async (req, res) => {
     for (const art of articulos) {
       const { articulo_id, estado_devolucion } = art;
 
+      console.log(`Procesando artículo ${articulo_id}: ${estado_devolucion}`);
+
       // Actualizar estado en alquiler_articulos
       await supabase
         .from('alquiler_articulos')
@@ -176,31 +182,64 @@ router.post('/:id/devolucion', async (req, res) => {
         const fecha_disponible = new Date();
         fecha_disponible.setHours(fecha_disponible.getHours() + 24);
         
+        console.log(`  → Mantenimiento 24h hasta ${fecha_disponible}`);
+        
+        // Incrementar cantidad_mantenimiento y actualizar estado
+        const { data: articulo } = await supabase
+          .from('articulos')
+          .select('cantidad_mantenimiento')
+          .eq('id', articulo_id)
+          .single();
+
         await supabase
           .from('articulos')
           .update({ 
             estado: 'mantenimiento',
-            fecha_disponible: fecha_disponible.toISOString()
+            fecha_disponible: fecha_disponible.toISOString(),
+            cantidad_mantenimiento: (articulo?.cantidad_mantenimiento || 0) + 1
           })
           .eq('id', articulo_id);
+
       } else if (estado_devolucion === 'dañado') {
         // Poner en mantenimiento por 72 horas
         const fecha_disponible = new Date();
         fecha_disponible.setHours(fecha_disponible.getHours() + 72);
         
+        console.log(`  → Mantenimiento 72h (dañado) hasta ${fecha_disponible}`);
+        
+        // Incrementar cantidad_mantenimiento
+        const { data: articulo } = await supabase
+          .from('articulos')
+          .select('cantidad_mantenimiento')
+          .eq('id', articulo_id)
+          .single();
+
         await supabase
           .from('articulos')
           .update({ 
             estado: 'mantenimiento',
-            fecha_disponible: fecha_disponible.toISOString()
+            fecha_disponible: fecha_disponible.toISOString(),
+            cantidad_mantenimiento: (articulo?.cantidad_mantenimiento || 0) + 1
           })
           .eq('id', articulo_id);
+
       } else if (estado_devolucion === 'perdido') {
         hay_perdidos = true;
-        // Marcar como perdido y disminuir inventario
+        console.log(`  → Artículo PERDIDO`);
+        
+        // Incrementar cantidad_perdida
+        const { data: articulo } = await supabase
+          .from('articulos')
+          .select('cantidad_perdida')
+          .eq('id', articulo_id)
+          .single();
+
         await supabase
           .from('articulos')
-          .update({ estado: 'perdido' })
+          .update({ 
+            estado: 'perdido',
+            cantidad_perdida: (articulo?.cantidad_perdida || 0) + 1
+          })
           .eq('id', articulo_id);
       }
     }
@@ -230,7 +269,9 @@ router.post('/:id/devolucion', async (req, res) => {
       garantia_retenida = alquiler.garantia;
     }
 
-    // Actualizar alquiler
+    // IMPORTANTE: Actualizar el estado del alquiler a 'devuelto'
+    // Esto hace que el trigger recalcule cantidad_alquilada correctamente
+    console.log('Actualizando alquiler a estado: devuelto');
     const { data, error } = await supabase
       .from('alquileres')
       .update({
@@ -245,8 +286,13 @@ router.post('/:id/devolucion', async (req, res) => {
       .single();
 
     if (error) throw error;
+    
+    console.log('✅ Devolución completada exitosamente');
+    console.log('Estado alquiler:', data.estado);
+    
     res.json(data);
   } catch (error) {
+    console.error('❌ Error en devolución:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

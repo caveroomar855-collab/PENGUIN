@@ -8,6 +8,7 @@ import '../../models/venta.dart';
 import '../../models/cliente.dart';
 import '../../models/articulo.dart';
 import '../../models/traje.dart';
+import '../../utils/validators.dart';
 
 class CrearVentaScreen extends StatefulWidget {
   const CrearVentaScreen({super.key});
@@ -17,6 +18,7 @@ class CrearVentaScreen extends StatefulWidget {
 }
 
 class _CrearVentaScreenState extends State<CrearVentaScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _dniController = TextEditingController();
   final _nombreController = TextEditingController();
   final _telefonoController = TextEditingController();
@@ -48,21 +50,24 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
       appBar: AppBar(
         title: const Text('Nueva Venta'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSeccionCliente(),
-            const SizedBox(height: 24),
-            _buildSeccionArticulos(),
-            const SizedBox(height: 24),
-            _buildSeccionPago(),
-            const SizedBox(height: 24),
-            _buildSeccionObservaciones(),
-            const SizedBox(height: 32),
-            _buildBotonGuardar(),
-          ],
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSeccionCliente(),
+              const SizedBox(height: 24),
+              _buildSeccionArticulos(),
+              const SizedBox(height: 24),
+              _buildSeccionPago(),
+              const SizedBox(height: 24),
+              _buildSeccionObservaciones(),
+              const SizedBox(height: 32),
+              _buildBotonGuardar(),
+            ],
+          ),
         ),
       ),
     );
@@ -78,10 +83,11 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
             const Text('Datos del Cliente',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            TextField(
+            TextFormField(
               controller: _dniController,
               decoration: InputDecoration(
                 labelText: 'DNI *',
+                helperText: '8 dígitos (busca automáticamente)',
                 border: const OutlineInputBorder(),
                 suffixIcon: _buscandoCliente
                     ? const Padding(
@@ -91,9 +97,12 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                     : IconButton(
                         icon: const Icon(Icons.search),
                         onPressed: _buscarClientePorDni,
+                        tooltip: 'Buscar cliente',
                       ),
               ),
               keyboardType: TextInputType.number,
+              maxLength: 8,
+              validator: Validators.validateDni,
               onChanged: (value) {
                 if (_clienteExistente != null) {
                   setState(() {
@@ -102,25 +111,34 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                     _telefonoController.clear();
                   });
                 }
+                // Buscar automáticamente cuando el DNI tenga 8 dígitos
+                if (value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
+                  _buscarClientePorDni();
+                }
               },
             ),
             const SizedBox(height: 12),
-            TextField(
+            TextFormField(
               controller: _nombreController,
               decoration: const InputDecoration(
                 labelText: 'Nombre Completo *',
                 border: OutlineInputBorder(),
               ),
+              validator: Validators.validateNombre,
+              textCapitalization: TextCapitalization.words,
               enabled: _clienteExistente == null,
             ),
             const SizedBox(height: 12),
-            TextField(
+            TextFormField(
               controller: _telefonoController,
               decoration: const InputDecoration(
                 labelText: 'Teléfono *',
+                helperText: '9 dígitos, inicia con 9',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
+              maxLength: 9,
+              validator: Validators.validateTelefono,
               enabled: _clienteExistente == null,
             ),
           ],
@@ -413,13 +431,8 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
   }
 
   Future<void> _guardarVenta() async {
-    // Validaciones
-    if (_dniController.text.isEmpty ||
-        _nombreController.text.isEmpty ||
-        _telefonoController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Complete los datos del cliente')),
-      );
+    // Validar formulario
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 

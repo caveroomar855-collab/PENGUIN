@@ -115,11 +115,11 @@ class InventarioProvider extends ChangeNotifier {
   }
 
   Future<bool> gestionarMantenimiento(
-    String id,
-    String accion, // 'agregar' o 'quitar'
-    int cantidad,
-    {int? horasMantenimiento, bool indefinido = false}
-  ) async {
+      String id,
+      String accion, // 'agregar' o 'quitar'
+      int cantidad,
+      {int? horasMantenimiento,
+      bool indefinido = false}) async {
     try {
       final body = {
         'accion': accion,

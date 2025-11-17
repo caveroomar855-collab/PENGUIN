@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/clientes_provider.dart';
 import '../../models/cliente.dart';
+import '../../utils/validators.dart';
 
 class ClientesScreen extends StatefulWidget {
   const ClientesScreen({super.key});
@@ -192,6 +193,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   void _mostrarDialogoCrear() {
+    final formKey = GlobalKey<FormState>();
     final dniController = TextEditingController();
     final nombreController = TextEditingController();
     final telefonoController = TextEditingController();
@@ -203,53 +205,65 @@ class _ClientesScreenState extends State<ClientesScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Nuevo Cliente'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: dniController,
-                decoration: const InputDecoration(
-                  labelText: 'DNI *',
-                  border: OutlineInputBorder(),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: dniController,
+                  decoration: const InputDecoration(
+                    labelText: 'DNI *',
+                    border: OutlineInputBorder(),
+                    helperText: '8 dígitos',
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 8,
+                  validator: Validators.validateDni,
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre Completo *',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre Completo *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: Validators.validateNombre,
+                  textCapitalization: TextCapitalization.words,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: telefonoController,
-                decoration: const InputDecoration(
-                  labelText: 'Teléfono *',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: telefonoController,
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono *',
+                    border: OutlineInputBorder(),
+                    helperText: '9 dígitos, inicia con 9',
+                  ),
+                  keyboardType: TextInputType.phone,
+                  maxLength: 9,
+                  validator: Validators.validateTelefono,
                 ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email (opcional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: Validators.validateEmail,
                 ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descripcionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción / Notas',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descripcionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción / Notas',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
                 ),
-                maxLines: 2,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -259,13 +273,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (dniController.text.isEmpty ||
-                  nombreController.text.isEmpty ||
-                  telefonoController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('DNI, Nombre y Teléfono son obligatorios')),
-                );
+              if (!formKey.currentState!.validate()) {
                 return;
               }
 
@@ -305,6 +313,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   void _mostrarDialogoEditar(Cliente cliente) {
+    final formKey = GlobalKey<FormState>();
     final dniController = TextEditingController(text: cliente.dni);
     final nombreController = TextEditingController(text: cliente.nombre);
     final telefonoController = TextEditingController(text: cliente.telefono);
@@ -317,53 +326,65 @@ class _ClientesScreenState extends State<ClientesScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Editar Cliente'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: dniController,
-                decoration: const InputDecoration(
-                  labelText: 'DNI *',
-                  border: OutlineInputBorder(),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: dniController,
+                  decoration: const InputDecoration(
+                    labelText: 'DNI *',
+                    border: OutlineInputBorder(),
+                    helperText: '8 dígitos',
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 8,
+                  validator: Validators.validateDni,
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre Completo *',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre Completo *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: Validators.validateNombre,
+                  textCapitalization: TextCapitalization.words,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: telefonoController,
-                decoration: const InputDecoration(
-                  labelText: 'Teléfono *',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: telefonoController,
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono *',
+                    border: OutlineInputBorder(),
+                    helperText: '9 dígitos, inicia con 9',
+                  ),
+                  keyboardType: TextInputType.phone,
+                  maxLength: 9,
+                  validator: Validators.validateTelefono,
                 ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email (opcional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: Validators.validateEmail,
                 ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descripcionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción / Notas',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descripcionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción / Notas',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
                 ),
-                maxLines: 2,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -373,13 +394,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (dniController.text.isEmpty ||
-                  nombreController.text.isEmpty ||
-                  telefonoController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('DNI, Nombre y Teléfono son obligatorios')),
-                );
+              if (!formKey.currentState!.validate()) {
                 return;
               }
 

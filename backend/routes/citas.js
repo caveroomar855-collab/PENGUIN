@@ -8,10 +8,17 @@ router.get('/', async (req, res) => {
     const { data, error } = await supabase
       .from('citas')
       .select('*, clientes(dni, nombre, telefono)')
-      .order('fecha_hora', { ascending: true });
+      .order('fecha_hora', { ascending: false });
 
     if (error) throw error;
-    res.json(data || []);
+    
+    // Convertir id a string para Flutter
+    const citasFormateadas = (data || []).map(cita => ({
+      ...cita,
+      id: cita.id.toString()
+    }));
+    
+    res.json(citasFormateadas);
   } catch (error) {
     console.error('Error obteniendo citas:', error);
     res.status(500).json({ error: 'Error obteniendo citas' });
@@ -25,11 +32,17 @@ router.get('/pendientes', async (req, res) => {
       .from('citas')
       .select('*, clientes(dni, nombre, telefono)')
       .eq('estado', 'pendiente')
-      .gte('fecha_hora', new Date().toISOString())
       .order('fecha_hora', { ascending: true });
 
     if (error) throw error;
-    res.json(data || []);
+    
+    // Convertir id a string para Flutter
+    const citasFormateadas = (data || []).map(cita => ({
+      ...cita,
+      id: cita.id.toString()
+    }));
+    
+    res.json(citasFormateadas);
   } catch (error) {
     console.error('Error obteniendo citas pendientes:', error);
     res.status(500).json({ error: 'Error obteniendo citas pendientes' });
@@ -60,7 +73,14 @@ router.post('/', async (req, res) => {
       .single();
 
     if (error) throw error;
-    res.status(201).json(data);
+    
+    // Convertir id a string para Flutter
+    const citaFormateada = {
+      ...data,
+      id: data.id.toString()
+    };
+    
+    res.status(201).json(citaFormateada);
   } catch (error) {
     console.error('Error creando cita:', error);
     res.status(500).json({ error: 'Error creando cita' });
@@ -85,7 +105,14 @@ router.patch('/:id/estado', async (req, res) => {
       .single();
 
     if (error) throw error;
-    res.json(data);
+    
+    // Convertir id a string para Flutter
+    const citaFormateada = {
+      ...data,
+      id: data.id.toString()
+    };
+    
+    res.json(citaFormateada);
   } catch (error) {
     console.error('Error actualizando cita:', error);
     res.status(500).json({ error: 'Error actualizando cita' });

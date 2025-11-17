@@ -112,7 +112,8 @@ CREATE TABLE IF NOT EXISTS venta_articulos (
 CREATE TABLE IF NOT EXISTS citas (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE,
-  fecha TIMESTAMP WITH TIME ZONE NOT NULL,
+  fecha_hora TIMESTAMP WITH TIME ZONE NOT NULL,
+  tipo VARCHAR(50) NOT NULL, -- 'alquiler', 'prueba', 'devolucion', 'otro'
   descripcion TEXT,
   estado VARCHAR(50) DEFAULT 'pendiente', -- 'pendiente', 'completada', 'cancelada'
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
