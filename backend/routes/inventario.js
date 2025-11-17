@@ -86,7 +86,8 @@ router.post('/articulos', async (req, res) => {
       nombre, 
       tipo, 
       talla, 
-      color, 
+      color,
+      cantidad = 1,
       precio_alquiler, 
       precio_venta 
     } = req.body;
@@ -99,6 +100,12 @@ router.post('/articulos', async (req, res) => {
         tipo,
         talla,
         color,
+        cantidad,
+        cantidad_disponible: cantidad,
+        cantidad_alquilada: 0,
+        cantidad_mantenimiento: 0,
+        cantidad_vendida: 0,
+        cantidad_perdida: 0,
         precio_alquiler,
         precio_venta,
         estado: 'disponible'
@@ -193,18 +200,43 @@ router.delete('/articulos/:id', async (req, res) => {
   }
 });
 
-// Cambiar estado de mantenimiento
+// Gestionar mantenimiento (cantidades)
 router.patch('/articulos/:id/mantenimiento', async (req, res) => {
   try {
-    const { estado, horas_mantenimiento, indefinido } = req.body;
+    const { cantidad, accion, horas_mantenimiento, indefinido } = req.body;
+    // accion: 'agregar' o 'quitar'
 
-    let updateData = { estado };
+    // Obtener artículo actual
+    const { data: articulo, error: getError } = await supabase
+      .from('articulos')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
 
-    if (estado === 'mantenimiento' && !indefinido && horas_mantenimiento) {
-      const fecha_disponible = new Date();
-      fecha_disponible.setHours(fecha_disponible.getHours() + horas_mantenimiento);
-      updateData.fecha_disponible = fecha_disponible.toISOString();
-    } else if (estado === 'disponible') {
+    if (getError) throw getError;
+
+    let updateData = {};
+
+    if (accion === 'agregar') {
+      // Poner unidades en mantenimiento
+      if (articulo.cantidad_disponible < cantidad) {
+        return res.status(400).json({ error: 'No hay suficientes unidades disponibles' });
+      }
+      
+      updateData.cantidad_disponible = articulo.cantidad_disponible - cantidad;
+      updateData.cantidad_mantenimiento = articulo.cantidad_mantenimiento + cantidad;
+
+      if (!indefinido && horas_mantenimiento) {
+        const fecha_disponible = new Date();
+        fecha_disponible.setHours(fecha_disponible.getHours() + horas_mantenimiento);
+        updateData.fecha_disponible = fecha_disponible.toISOString();
+      }
+    } else if (accion === 'quitar') {
+      // Quitar unidades de mantenimiento
+      const cantidadAQuitar = cantidad || articulo.cantidad_mantenimiento;
+      
+      updateData.cantidad_disponible = articulo.cantidad_disponible + cantidadAQuitar;
+      updateData.cantidad_mantenimiento = Math.max(0, articulo.cantidad_mantenimiento - cantidadAQuitar);
       updateData.fecha_disponible = null;
     }
 

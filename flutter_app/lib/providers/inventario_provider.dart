@@ -114,21 +114,25 @@ class InventarioProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> ponerEnMantenimiento(
+  Future<bool> gestionarMantenimiento(
     String id,
-    DateTime? fechaDisponible,
+    String accion, // 'agregar' o 'quitar'
+    int cantidad,
+    {int? horasMantenimiento, bool indefinido = false}
   ) async {
     try {
       final body = {
-        'estado': 'mantenimiento',
+        'accion': accion,
+        'cantidad': cantidad,
+        'indefinido': indefinido,
       };
-      
-      if (fechaDisponible != null) {
-        body['fecha_disponible'] = fechaDisponible.toIso8601String();
+
+      if (horasMantenimiento != null) {
+        body['horas_mantenimiento'] = horasMantenimiento;
       }
 
       final response = await http.patch(
-        Uri.parse('${ApiConfig.inventario}/articulos/$id/estado'),
+        Uri.parse('${ApiConfig.inventario}/articulos/$id/mantenimiento'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );
@@ -139,7 +143,7 @@ class InventarioProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      debugPrint('Error poniendo en mantenimiento: $e');
+      debugPrint('Error gestionando mantenimiento: $e');
       return false;
     }
   }
@@ -174,7 +178,10 @@ class InventarioProvider extends ChangeNotifier {
         return {'success': true};
       } else {
         final error = json.decode(response.body);
-        return {'success': false, 'error': error['error'] ?? 'Error desconocido'};
+        return {
+          'success': false,
+          'error': error['error'] ?? 'Error desconocido'
+        };
       }
     } catch (e) {
       debugPrint('Error creando artículo: $e');
@@ -182,12 +189,17 @@ class InventarioProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> crearTraje(Traje traje) async {
+  Future<bool> crearTraje(
+      String nombre, String descripcion, List<String> articulosIds) async {
     try {
       final response = await http.post(
         Uri.parse('${ApiConfig.inventario}/trajes'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(traje.toJson()),
+        body: json.encode({
+          'nombre': nombre,
+          'descripcion': descripcion,
+          'articulos': articulosIds,
+        }),
       );
 
       if (response.statusCode == 201) {

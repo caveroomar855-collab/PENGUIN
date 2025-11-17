@@ -22,6 +22,9 @@ class _InventarioScreenState extends State<InventarioScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // Reconstruir para actualizar el FAB
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarDatos();
     });
@@ -115,7 +118,9 @@ class _InventarioScreenState extends State<InventarioScreen>
               var articulos = provider.articulos.where((a) {
                 // Filtro por búsqueda
                 if (_searchQuery.isNotEmpty) {
-                  final matchSearch = a.nombre.toLowerCase().contains(_searchQuery) ||
+                  final matchSearch = a.nombre
+                          .toLowerCase()
+                          .contains(_searchQuery) ||
                       a.codigo.toLowerCase().contains(_searchQuery) ||
                       a.tipo.toLowerCase().contains(_searchQuery) ||
                       (a.color?.toLowerCase().contains(_searchQuery) ?? false);
@@ -135,13 +140,15 @@ class _InventarioScreenState extends State<InventarioScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.inventory_2, size: 80, color: Colors.grey),
+                      const Icon(Icons.inventory_2,
+                          size: 80, color: Colors.grey),
                       const SizedBox(height: 16),
                       Text(
                         _searchQuery.isEmpty
                             ? 'No hay artículos'
                             : 'No se encontraron artículos',
-                        style: const TextStyle(fontSize: 18, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 18, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -211,24 +218,53 @@ class _InventarioScreenState extends State<InventarioScreen>
             Text('${articulo.tipo.toUpperCase()} - ${articulo.codigo}'),
             if (articulo.talla != null) Text('Talla: ${articulo.talla}'),
             if (articulo.color != null) Text('Color: ${articulo.color}'),
+            Text(
+              'Stock: ${articulo.cantidadDisponible}/${articulo.cantidad} disponibles',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color:
+                    articulo.cantidadDisponible > 0 ? Colors.green : Colors.red,
+              ),
+            ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _getEstadoColor(articulo.estado),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    articulo.estado.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                if (articulo.cantidadAlquilada > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${articulo.cantidadAlquilada} alq.',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
+                if (articulo.cantidadMantenimiento > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${articulo.cantidadMantenimiento} mant.',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 if (enMantenimiento && disponibleEn != null) ...[
                   const SizedBox(width: 8),
                   Text(
@@ -331,7 +367,8 @@ class _InventarioScreenState extends State<InventarioScreen>
               final trajes = provider.trajes.where((t) {
                 if (_searchQuery.isEmpty) return true;
                 return t.nombre.toLowerCase().contains(_searchQuery) ||
-                    (t.descripcion?.toLowerCase().contains(_searchQuery) ?? false);
+                    (t.descripcion?.toLowerCase().contains(_searchQuery) ??
+                        false);
               }).toList();
 
               if (trajes.isEmpty) {
@@ -429,8 +466,7 @@ class _InventarioScreenState extends State<InventarioScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildEstadoBadge(
-                    'Disponibles', disponibles, Colors.green),
+                _buildEstadoBadge('Disponibles', disponibles, Colors.green),
                 _buildEstadoBadge('Alquilados', alquilados, Colors.blue),
                 _buildEstadoBadge(
                     'Mantenimiento', mantenimiento, Colors.orange),
@@ -538,8 +574,8 @@ class _InventarioScreenState extends State<InventarioScreen>
                   Icons.event_available),
               _buildEstadoCard('En Mantenimiento', mantenimiento, total,
                   Colors.orange, Icons.build),
-              _buildEstadoCard(
-                  'Vendidos', vendidos, total, Colors.purple, Icons.shopping_bag),
+              _buildEstadoCard('Vendidos', vendidos, total, Colors.purple,
+                  Icons.shopping_bag),
               _buildEstadoCard(
                   'Perdidos', perdidos, total, Colors.red, Icons.error),
             ],
@@ -551,7 +587,8 @@ class _InventarioScreenState extends State<InventarioScreen>
 
   Widget _buildEstadoCard(
       String label, int cantidad, int total, Color color, IconData icon) {
-    final porcentaje = total > 0 ? (cantidad / total * 100).toStringAsFixed(1) : '0.0';
+    final porcentaje =
+        total > 0 ? (cantidad / total * 100).toStringAsFixed(1) : '0.0';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -610,8 +647,8 @@ class _InventarioScreenState extends State<InventarioScreen>
               if (articulo.color != null)
                 _buildDetalleRow('Color:', articulo.color!),
               const Divider(height: 24),
-              _buildDetalleRow(
-                  'Precio Alquiler:', currencyFormat.format(articulo.precioAlquiler)),
+              _buildDetalleRow('Precio Alquiler:',
+                  currencyFormat.format(articulo.precioAlquiler)),
               _buildDetalleRow(
                   'Precio Venta:', currencyFormat.format(articulo.precioVenta)),
               const Divider(height: 24),
@@ -658,8 +695,8 @@ class _InventarioScreenState extends State<InventarioScreen>
         children: [
           SizedBox(
             width: 140,
-            child:
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: Text(
@@ -675,6 +712,7 @@ class _InventarioScreenState extends State<InventarioScreen>
   Future<void> _mostrarDialogoMantenimiento(Articulo articulo) async {
     int? horas = 24;
     bool indefinido = false;
+    int cantidad = 1;
 
     showDialog(
       context: context,
@@ -686,26 +724,52 @@ class _InventarioScreenState extends State<InventarioScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Artículo: ${articulo.nombre}'),
-                Text('Estado actual: ${articulo.estado}'),
+                Text('Artículo: ${articulo.nombre}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Stock total: ${articulo.cantidad}'),
+                Text('Disponibles: ${articulo.cantidadDisponible}',
+                    style: const TextStyle(color: Colors.green)),
+                Text('En mantenimiento: ${articulo.cantidadMantenimiento}',
+                    style: const TextStyle(color: Colors.orange)),
+                Text('Alquilados: ${articulo.cantidadAlquilada}',
+                    style: const TextStyle(color: Colors.blue)),
                 const Divider(height: 24),
-                if (articulo.estado == 'mantenimiento') ...[
-                  const Text('¿Desea quitar de mantenimiento?'),
+                if (articulo.cantidadMantenimiento > 0) ...[
+                  const Text('Unidades en mantenimiento:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Cantidad a quitar de mantenimiento',
+                      border: OutlineInputBorder(),
+                      helperText: 'Dejar en blanco para quitar todas',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      final parsed = int.tryParse(value);
+                      if (parsed != null && parsed <= articulo.cantidadMantenimiento) {
+                        setDialogState(() => cantidad = parsed);
+                      }
+                    },
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final provider = Provider.of<InventarioProvider>(
-                          context,
+                      final provider = Provider.of<InventarioProvider>(context,
                           listen: false);
-                      final resultado = await provider
-                          .cambiarEstadoArticulo(articulo.id!, 'disponible');
+                      final resultado = await provider.gestionarMantenimiento(
+                        articulo.id!,
+                        'quitar',
+                        cantidad,
+                      );
 
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(resultado
-                                ? 'Artículo disponible nuevamente'
+                                ? '$cantidad unidad(es) disponible(s) nuevamente'
                                 : 'Error al actualizar'),
                             backgroundColor:
                                 resultado ? Colors.green : Colors.red,
@@ -714,17 +778,38 @@ class _InventarioScreenState extends State<InventarioScreen>
                       }
                     },
                     icon: const Icon(Icons.check_circle),
-                    label: const Text('Marcar como Disponible'),
+                    label: const Text('Quitar de Mantenimiento'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       minimumSize: const Size(double.infinity, 48),
                     ),
                   ),
-                ] else ...[
-                  const Text('¿Por cuánto tiempo?'),
+                  const Divider(height: 24),
+                ],
+                if (articulo.cantidadDisponible > 0) ...[
+                  const Text('Poner unidades en mantenimiento:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: 'Cantidad',
+                      border: const OutlineInputBorder(),
+                      helperText: 'Máximo: ${articulo.cantidadDisponible}',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      final parsed = int.tryParse(value);
+                      if (parsed != null && parsed > 0 && parsed <= articulo.cantidadDisponible) {
+                        setDialogState(() => cantidad = parsed);
+                      }
+                    },
+                  ),
                   const SizedBox(height: 16),
+                  const Text('¿Por cuánto tiempo?'),
+                  const SizedBox(height: 8),
                   RadioListTile<int>(
-                    title: const Text('24 horas (Perfecta condición)'),
+                    dense: true,
+                    title: const Text('24 horas'),
                     value: 24,
                     groupValue: indefinido ? null : horas,
                     onChanged: indefinido
@@ -734,7 +819,8 @@ class _InventarioScreenState extends State<InventarioScreen>
                           },
                   ),
                   RadioListTile<int>(
-                    title: const Text('72 horas (Dañado)'),
+                    dense: true,
+                    title: const Text('72 horas'),
                     value: 72,
                     groupValue: indefinido ? null : horas,
                     onChanged: indefinido
@@ -744,6 +830,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                           },
                   ),
                   CheckboxListTile(
+                    dense: true,
                     title: const Text('Tiempo indefinido'),
                     value: indefinido,
                     onChanged: (value) {
@@ -751,12 +838,11 @@ class _InventarioScreenState extends State<InventarioScreen>
                     },
                   ),
                   if (!indefinido) ...[
-                    const SizedBox(height: 12),
                     TextField(
                       decoration: const InputDecoration(
                         labelText: 'Horas personalizadas',
                         border: OutlineInputBorder(),
-                        suffixText: 'horas',
+                        suffixText: 'hrs',
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (value) {
@@ -767,6 +853,47 @@ class _InventarioScreenState extends State<InventarioScreen>
                       },
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      if (cantidad <= 0 || cantidad > articulo.cantidadDisponible) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Cantidad inválida')),
+                        );
+                        return;
+                      }
+
+                      final provider = Provider.of<InventarioProvider>(context,
+                          listen: false);
+                      final resultado = await provider.gestionarMantenimiento(
+                        articulo.id!,
+                        'agregar',
+                        cantidad,
+                        horasMantenimiento: indefinido ? null : horas,
+                        indefinido: indefinido,
+                      );
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(resultado
+                                ? '$cantidad unidad(es) en mantenimiento'
+                                : 'Error al actualizar'),
+                            backgroundColor:
+                                resultado ? Colors.orange : Colors.red,
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.build),
+                    label: const Text('Poner en Mantenimiento'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -774,40 +901,8 @@ class _InventarioScreenState extends State<InventarioScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: const Text('Cerrar'),
             ),
-            if (articulo.estado != 'mantenimiento')
-              ElevatedButton(
-                onPressed: () async {
-                  final provider =
-                      Provider.of<InventarioProvider>(context, listen: false);
-
-                  DateTime? fechaDisponible;
-                  if (!indefinido && horas != null) {
-                    fechaDisponible =
-                        DateTime.now().add(Duration(hours: horas!));
-                  }
-
-                  final resultado = await provider.ponerEnMantenimiento(
-                    articulo.id!,
-                    fechaDisponible,
-                  );
-
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(resultado
-                            ? 'Artículo en mantenimiento'
-                            : 'Error al actualizar'),
-                        backgroundColor: resultado ? Colors.orange : Colors.red,
-                      ),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                child: const Text('Poner en Mantenimiento'),
-              ),
           ],
         ),
       ),
@@ -820,6 +915,7 @@ class _InventarioScreenState extends State<InventarioScreen>
     String tipo = 'saco';
     final tallaController = TextEditingController();
     final colorController = TextEditingController();
+    final cantidadController = TextEditingController(text: '1');
     final precioAlquilerController = TextEditingController();
     final precioVentaController = TextEditingController();
 
@@ -857,10 +953,12 @@ class _InventarioScreenState extends State<InventarioScreen>
                   items: const [
                     DropdownMenuItem(value: 'saco', child: Text('Saco')),
                     DropdownMenuItem(value: 'chaleco', child: Text('Chaleco')),
-                    DropdownMenuItem(value: 'pantalon', child: Text('Pantalón')),
+                    DropdownMenuItem(
+                        value: 'pantalon', child: Text('Pantalón')),
                     DropdownMenuItem(value: 'camisa', child: Text('Camisa')),
                     DropdownMenuItem(value: 'zapato', child: Text('Zapato')),
-                    DropdownMenuItem(value: 'extra', child: Text('Extra (Corbatas, etc.)')),
+                    DropdownMenuItem(
+                        value: 'extra', child: Text('Extra (Corbatas, etc.)')),
                   ],
                   onChanged: (value) {
                     setDialogState(() => tipo = value!);
@@ -881,6 +979,16 @@ class _InventarioScreenState extends State<InventarioScreen>
                     labelText: 'Color',
                     border: OutlineInputBorder(),
                   ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: cantidadController,
+                  decoration: const InputDecoration(
+                    labelText: 'Cantidad *',
+                    border: OutlineInputBorder(),
+                    helperText: 'Unidades totales en inventario',
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -914,10 +1022,21 @@ class _InventarioScreenState extends State<InventarioScreen>
               onPressed: () async {
                 if (codigoController.text.isEmpty ||
                     nombreController.text.isEmpty ||
+                    cantidadController.text.isEmpty ||
                     precioAlquilerController.text.isEmpty ||
                     precioVentaController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Complete los campos obligatorios')),
+                    const SnackBar(
+                        content: Text('Complete los campos obligatorios')),
+                  );
+                  return;
+                }
+
+                final cantidad = int.tryParse(cantidadController.text);
+                if (cantidad == null || cantidad < 1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('La cantidad debe ser al menos 1')),
                   );
                   return;
                 }
@@ -926,8 +1045,14 @@ class _InventarioScreenState extends State<InventarioScreen>
                   codigo: codigoController.text,
                   nombre: nombreController.text,
                   tipo: tipo,
-                  talla: tallaController.text.isEmpty ? null : tallaController.text,
-                  color: colorController.text.isEmpty ? null : colorController.text,
+                  talla: tallaController.text.isEmpty
+                      ? null
+                      : tallaController.text,
+                  color: colorController.text.isEmpty
+                      ? null
+                      : colorController.text,
+                  cantidad: cantidad,
+                  cantidadDisponible: cantidad,
                   precioAlquiler: double.parse(precioAlquilerController.text),
                   precioVenta: double.parse(precioVentaController.text),
                   estado: 'disponible',
@@ -1032,7 +1157,8 @@ class _InventarioScreenState extends State<InventarioScreen>
                   precioAlquilerController.text.isEmpty ||
                   precioVentaController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Complete los campos obligatorios')),
+                  const SnackBar(
+                      content: Text('Complete los campos obligatorios')),
                 );
                 return;
               }
@@ -1042,8 +1168,10 @@ class _InventarioScreenState extends State<InventarioScreen>
                 codigo: articulo.codigo,
                 nombre: nombreController.text,
                 tipo: articulo.tipo,
-                talla: tallaController.text.isEmpty ? null : tallaController.text,
-                color: colorController.text.isEmpty ? null : colorController.text,
+                talla:
+                    tallaController.text.isEmpty ? null : tallaController.text,
+                color:
+                    colorController.text.isEmpty ? null : colorController.text,
                 precioAlquiler: double.parse(precioAlquilerController.text),
                 precioVenta: double.parse(precioVentaController.text),
                 estado: articulo.estado,
@@ -1079,7 +1207,8 @@ class _InventarioScreenState extends State<InventarioScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar eliminación'),
-        content: Text('¿Está seguro de eliminar el artículo ${articulo.nombre}?'),
+        content:
+            Text('¿Está seguro de eliminar el artículo ${articulo.nombre}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -1112,9 +1241,141 @@ class _InventarioScreenState extends State<InventarioScreen>
   }
 
   Future<void> _mostrarDialogoCrearTraje() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Crear traje en desarrollo')),
+    final nombreController = TextEditingController();
+    final descripcionController = TextEditingController();
+    List<Articulo> articulosSeleccionados = [];
+
+    final resultado = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          final provider =
+              Provider.of<InventarioProvider>(context, listen: false);
+          final articulosDisponibles = provider.articulos
+              .where((a) => a.cantidadDisponible > 0)
+              .toList();
+
+          return AlertDialog(
+            title: const Text('Crear Nuevo Traje'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nombreController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del Traje',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.checkroom),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descripcionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción (opcional)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final seleccionados = await showDialog<List<Articulo>>(
+                        context: context,
+                        builder: (context) => _DialogoSeleccionarArticulosTraje(
+                          articulosDisponibles: articulosDisponibles,
+                          articulosSeleccionados: articulosSeleccionados,
+                        ),
+                      );
+                      if (seleccionados != null) {
+                        setState(() {
+                          articulosSeleccionados = seleccionados;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.add_circle),
+                    label: Text(articulosSeleccionados.isEmpty
+                        ? 'Seleccionar Artículos'
+                        : '${articulosSeleccionados.length} artículos'),
+                  ),
+                  if (articulosSeleccionados.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: articulosSeleccionados.length,
+                        itemBuilder: (context, index) {
+                          final art = articulosSeleccionados[index];
+                          return ListTile(
+                            dense: true,
+                            leading: Icon(_getIconoTipo(art.tipo), size: 20),
+                            title: Text(art.nombre,
+                                style: const TextStyle(fontSize: 14)),
+                            subtitle: Text('${art.tipo} - ${art.talla}',
+                                style: const TextStyle(fontSize: 12)),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: articulosSeleccionados.isEmpty
+                    ? null
+                    : () {
+                        if (nombreController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Ingrese nombre del traje')),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context, true);
+                      },
+                child: const Text('Crear Traje'),
+              ),
+            ],
+          );
+        },
+      ),
     );
+
+    if (resultado == true) {
+      final provider = Provider.of<InventarioProvider>(context, listen: false);
+      final success = await provider.crearTraje(
+        nombreController.text,
+        descripcionController.text,
+        articulosSeleccionados.map((a) => a.id!).toList(),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                success ? 'Traje creado exitosamente' : 'Error al crear traje'),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    }
+
+    nombreController.dispose();
+    descripcionController.dispose();
   }
 
   Future<void> _mostrarDialogoEditarTraje(Traje traje) async {
@@ -1168,6 +1429,133 @@ class _InventarioScreenState extends State<InventarioScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    super.dispose();
+  }
+}
+
+// Widget diálogo para seleccionar artículos del traje
+class _DialogoSeleccionarArticulosTraje extends StatefulWidget {
+  final List<Articulo> articulosDisponibles;
+  final List<Articulo> articulosSeleccionados;
+
+  const _DialogoSeleccionarArticulosTraje({
+    required this.articulosDisponibles,
+    required this.articulosSeleccionados,
+  });
+
+  @override
+  State<_DialogoSeleccionarArticulosTraje> createState() =>
+      __DialogoSeleccionarArticulosTrajeState();
+}
+
+class __DialogoSeleccionarArticulosTrajeState
+    extends State<_DialogoSeleccionarArticulosTraje> {
+  late List<Articulo> _seleccionados;
+  final _searchController = TextEditingController();
+  String _filtro = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _seleccionados = List.from(widget.articulosSeleccionados);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final articulosFiltrados = widget.articulosDisponibles.where((a) {
+      final query = _filtro.toLowerCase();
+      return a.nombre.toLowerCase().contains(query) ||
+          a.codigo.toLowerCase().contains(query) ||
+          a.tipo.toLowerCase().contains(query);
+    }).toList();
+
+    return AlertDialog(
+      title: const Text('Seleccionar Artículos para el Traje'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: MediaQuery.of(context).size.height * 0.6,
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Buscar',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() => _filtro = value);
+              },
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: articulosFiltrados.length,
+                itemBuilder: (context, index) {
+                  final articulo = articulosFiltrados[index];
+                  final seleccionado =
+                      _seleccionados.any((a) => a.id == articulo.id);
+
+                  return CheckboxListTile(
+                    value: seleccionado,
+                    title: Text(articulo.nombre),
+                    subtitle: Text(
+                      '${articulo.tipo} - ${articulo.talla} - ${articulo.color}\nStock: ${articulo.cantidadDisponible}',
+                    ),
+                    secondary: Icon(_getIconoTipo(articulo.tipo)),
+                    onChanged: (checked) {
+                      setState(() {
+                        if (checked == true) {
+                          _seleccionados.add(articulo);
+                        } else {
+                          _seleccionados
+                              .removeWhere((a) => a.id == articulo.id);
+                        }
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.pop(context, _seleccionados),
+          icon: const Icon(Icons.check),
+          label: Text('Aceptar (${_seleccionados.length})'),
+        ),
+      ],
+    );
+  }
+
+  IconData _getIconoTipo(String tipo) {
+    switch (tipo.toLowerCase()) {
+      case 'saco':
+        return Icons.checkroom;
+      case 'chaleco':
+        return Icons.vpn_key;
+      case 'pantalon':
+        return Icons.boy;
+      case 'camisa':
+        return Icons.dry_cleaning;
+      case 'zapato':
+        return Icons.directions_walk;
+      case 'extra':
+        return Icons.shopping_bag;
+      default:
+        return Icons.inventory_2;
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 }

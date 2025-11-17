@@ -3,14 +3,20 @@ class Articulo {
   final String codigo;
   final String nombre;
   final String
-  tipo; // 'saco', 'chaleco', 'pantalon', 'camisa', 'zapato', 'extra'
+      tipo; // 'saco', 'chaleco', 'pantalon', 'camisa', 'zapato', 'extra'
   final String? talla;
   final String? color;
   final double precioAlquiler;
   final double precioVenta;
   final String
-  estado; // 'disponible', 'alquilado', 'mantenimiento', 'vendido', 'perdido'
+      estado; // 'disponible', 'alquilado', 'mantenimiento', 'vendido', 'perdido'
   final DateTime? fechaDisponible;
+  final int cantidad;
+  final int cantidadDisponible;
+  final int cantidadAlquilada;
+  final int cantidadMantenimiento;
+  final int cantidadVendida;
+  final int cantidadPerdida;
 
   Articulo({
     this.id,
@@ -23,6 +29,12 @@ class Articulo {
     required this.precioVenta,
     this.estado = 'disponible',
     this.fechaDisponible,
+    this.cantidad = 1,
+    this.cantidadDisponible = 1,
+    this.cantidadAlquilada = 0,
+    this.cantidadMantenimiento = 0,
+    this.cantidadVendida = 0,
+    this.cantidadPerdida = 0,
   });
 
   factory Articulo.fromJson(Map<String, dynamic> json) {
@@ -39,6 +51,12 @@ class Articulo {
       fechaDisponible: json['fecha_disponible'] != null
           ? DateTime.parse(json['fecha_disponible'])
           : null,
+      cantidad: json['cantidad'] ?? 1,
+      cantidadDisponible: json['cantidad_disponible'] ?? 1,
+      cantidadAlquilada: json['cantidad_alquilada'] ?? 0,
+      cantidadMantenimiento: json['cantidad_mantenimiento'] ?? 0,
+      cantidadVendida: json['cantidad_vendida'] ?? 0,
+      cantidadPerdida: json['cantidad_perdida'] ?? 0,
     );
   }
 
@@ -53,10 +71,12 @@ class Articulo {
       'precio_venta': precioVenta,
       'estado': estado,
       'fecha_disponible': fechaDisponible?.toIso8601String(),
+      'cantidad': cantidad,
     };
   }
 
-  bool get isDisponible => estado == 'disponible';
-  bool get isAlquilado => estado == 'alquilado';
-  bool get isMantenimiento => estado == 'mantenimiento';
+  bool get isDisponible => cantidadDisponible > 0;
+  bool get isAlquilado => cantidadAlquilada > 0;
+  bool get isMantenimiento => cantidadMantenimiento > 0;
+  bool get tieneStock => cantidadDisponible > 0;
 }

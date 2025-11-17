@@ -74,6 +74,9 @@ router.get('/:id', async (req, res) => {
 // Crear alquiler
 router.post('/', async (req, res) => {
   try {
+    console.log('=== CREAR ALQUILER ===');
+    console.log('Body recibido:', JSON.stringify(req.body, null, 2));
+    
     const { 
       cliente_id, 
       articulos, 
@@ -85,6 +88,8 @@ router.post('/', async (req, res) => {
       observaciones 
     } = req.body;
 
+    console.log('Artículos a alquilar:', articulos);
+
     // Crear alquiler
     const { data: alquiler, error: alquilerError } = await supabase
       .from('alquileres')
@@ -94,14 +99,19 @@ router.post('/', async (req, res) => {
         fecha_fin,
         monto_alquiler,
         garantia,
-        metodo_pago,
+        metodo_pago: metodo_pago || 'efectivo',
         observaciones: observaciones || null,
         estado: 'activo'
       }])
       .select()
       .single();
 
-    if (alquilerError) throw alquilerError;
+    if (alquilerError) {
+      console.error('Error creando alquiler:', alquilerError);
+      throw alquilerError;
+    }
+    
+    console.log('Alquiler creado:', alquiler.id);
 
     // Insertar artículos del alquiler
     const articulosData = articulos.map(art => ({
@@ -110,22 +120,25 @@ router.post('/', async (req, res) => {
       estado: 'alquilado'
     }));
 
+    console.log('Insertando artículos:', articulosData);
+
     const { error: articulosError } = await supabase
       .from('alquiler_articulos')
       .insert(articulosData);
 
-    if (articulosError) throw articulosError;
-
-    // Actualizar estado de artículos a alquilado
-    for (const art of articulos) {
-      await supabase
-        .from('articulos')
-        .update({ estado: 'alquilado' })
-        .eq('id', art.id);
+    if (articulosError) {
+      console.error('Error insertando artículos:', articulosError);
+      throw articulosError;
     }
+
+    console.log('Alquiler creado exitosamente');
+    // Las cantidades se actualizan automáticamente con el trigger
+    // No es necesario actualizar el estado individual
 
     res.status(201).json(alquiler);
   } catch (error) {
+    console.error('ERROR GENERAL:', error.message);
+    console.error('Stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });

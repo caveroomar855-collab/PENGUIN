@@ -69,32 +69,43 @@ class AlquileresProvider extends ChangeNotifier {
 
   Future<bool> crearAlquiler({
     required String clienteId,
-    required List<int> articulosIds,
-    required List<int> trajesIds,
+    required List<String> articulosIds,
+    required List<String> trajesIds,
     required DateTime fechaInicio,
     required DateTime fechaFin,
     required double montoAlquiler,
     required double garantia,
   }) async {
     try {
+      debugPrint('=== CREAR ALQUILER ===');
+      debugPrint('Cliente ID: $clienteId');
+      debugPrint('Artículos IDs: $articulosIds');
+
+      final body = {
+        'cliente_id': clienteId,
+        'articulos': articulosIds.map((id) => {'id': id}).toList(),
+        'fecha_inicio': fechaInicio.toIso8601String(),
+        'fecha_fin': fechaFin.toIso8601String(),
+        'monto_alquiler': montoAlquiler,
+        'garantia': garantia,
+      };
+
+      debugPrint('Body enviado: ${json.encode(body)}');
+
       final response = await http.post(
         Uri.parse(ApiConfig.alquileres),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'cliente_id': clienteId,
-          'articulos_ids': articulosIds,
-          'trajes_ids': trajesIds,
-          'fecha_inicio': fechaInicio.toIso8601String(),
-          'fecha_fin': fechaFin.toIso8601String(),
-          'monto_alquiler': montoAlquiler,
-          'garantia': garantia,
-        }),
+        body: json.encode(body),
       );
+
+      debugPrint('Status code: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
         await cargarActivos();
         return true;
       }
+      debugPrint('Error: Status ${response.statusCode}');
       return false;
     } catch (e) {
       debugPrint('Error creando alquiler: $e');

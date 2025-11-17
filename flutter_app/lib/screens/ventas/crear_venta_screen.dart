@@ -340,7 +340,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
     final inventarioProvider =
         Provider.of<InventarioProvider>(context, listen: false);
     final articulosDisponibles = inventarioProvider.articulos
-        .where((a) => a.estado == 'disponible')
+        .where((a) => a.cantidadDisponible > 0)
         .toList();
 
     if (articulosDisponibles.isEmpty) {
@@ -385,7 +385,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
 
     if (traje != null && traje.articulos.isNotEmpty) {
       final articulosDisponibles =
-          traje.articulos.where((a) => a.estado == 'disponible').toList();
+          traje.articulos.where((a) => a.cantidadDisponible > 0).toList();
 
       if (articulosDisponibles.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -621,7 +621,7 @@ class _DialogoSeleccionTraje extends StatelessWidget {
           itemBuilder: (context, index) {
             final traje = trajes[index];
             final disponibles =
-                traje.articulos.where((a) => a.estado == 'disponible').length;
+                traje.articulos.where((a) => a.cantidadDisponible > 0).length;
             return ListTile(
               title: Text(traje.nombre),
               subtitle: Text(
