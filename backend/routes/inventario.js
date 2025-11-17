@@ -148,6 +148,51 @@ router.put('/articulos/:id', async (req, res) => {
   }
 });
 
+// Cambiar estado de artículo
+router.patch('/articulos/:id/estado', async (req, res) => {
+  try {
+    const { estado, fecha_disponible } = req.body;
+
+    let updateData = { estado };
+
+    // Si se pone en mantenimiento y se especifica fecha
+    if (estado === 'mantenimiento' && fecha_disponible) {
+      updateData.fecha_disponible = fecha_disponible;
+    } 
+    // Si se quita de mantenimiento, limpiar fecha
+    else if (estado === 'disponible') {
+      updateData.fecha_disponible = null;
+    }
+
+    const { data, error } = await supabase
+      .from('articulos')
+      .update(updateData)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar artículo
+router.delete('/articulos/:id', async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('articulos')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Cambiar estado de mantenimiento
 router.patch('/articulos/:id/mantenimiento', async (req, res) => {
   try {

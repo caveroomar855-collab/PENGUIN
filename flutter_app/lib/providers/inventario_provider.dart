@@ -76,25 +76,6 @@ class InventarioProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> crearArticulo(Articulo articulo) async {
-    try {
-      final response = await http.post(
-        Uri.parse('${ApiConfig.inventario}/articulos'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(articulo.toJson()),
-      );
-
-      if (response.statusCode == 201) {
-        await cargarArticulos();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      debugPrint('Error creando artículo: $e');
-      return false;
-    }
-  }
-
   Future<bool> actualizarArticulo(String id, Articulo articulo) async {
     try {
       final response = await http.put(
@@ -114,21 +95,12 @@ class InventarioProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> cambiarEstadoMantenimiento(
-    String id,
-    String estado, {
-    int? horasMantenimiento,
-    bool indefinido = false,
-  }) async {
+  Future<bool> cambiarEstadoArticulo(String id, String estado) async {
     try {
       final response = await http.patch(
-        Uri.parse('${ApiConfig.inventario}/articulos/$id/mantenimiento'),
+        Uri.parse('${ApiConfig.inventario}/articulos/$id/estado'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'estado': estado,
-          'horas_mantenimiento': horasMantenimiento,
-          'indefinido': indefinido,
-        }),
+        body: json.encode({'estado': estado}),
       );
 
       if (response.statusCode == 200) {
@@ -137,8 +109,76 @@ class InventarioProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      debugPrint('Error cambiando estado de mantenimiento: $e');
+      debugPrint('Error cambiando estado: $e');
       return false;
+    }
+  }
+
+  Future<bool> ponerEnMantenimiento(
+    String id,
+    DateTime? fechaDisponible,
+  ) async {
+    try {
+      final body = {
+        'estado': 'mantenimiento',
+      };
+      
+      if (fechaDisponible != null) {
+        body['fecha_disponible'] = fechaDisponible.toIso8601String();
+      }
+
+      final response = await http.patch(
+        Uri.parse('${ApiConfig.inventario}/articulos/$id/estado'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200) {
+        await cargarArticulos();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error poniendo en mantenimiento: $e');
+      return false;
+    }
+  }
+
+  Future<bool> eliminarArticulo(String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.inventario}/articulos/$id'),
+      );
+
+      if (response.statusCode == 200) {
+        await cargarArticulos();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error eliminando artículo: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> crearArticulo(Articulo articulo) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.inventario}/articulos'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(articulo.toJson()),
+      );
+
+      if (response.statusCode == 201) {
+        await cargarArticulos();
+        return {'success': true};
+      } else {
+        final error = json.decode(response.body);
+        return {'success': false, 'error': error['error'] ?? 'Error desconocido'};
+      }
+    } catch (e) {
+      debugPrint('Error creando artículo: $e');
+      return {'success': false, 'error': e.toString()};
     }
   }
 
