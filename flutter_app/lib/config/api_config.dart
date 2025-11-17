@@ -1,8 +1,6 @@
 class ApiConfig {
-  // Cambia esta URL a la IP de tu servidor local
-  // Si usas el emulador de Android: 10.0.2.2
-  // Si usas dispositivo físico: la IP de tu computadora en la red local (ej: 192.168.1.100)
-  static const String baseUrl = 'http://192.168.0.103:3000/api';
+  // Backend deployado en Render - Nadie necesita correr servidor local
+  static const String baseUrl = 'https://penguin-kt7e.onrender.com/api';
 
   // Endpoints
   static const String clientes = '$baseUrl/clientes';
