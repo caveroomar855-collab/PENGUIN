@@ -67,12 +67,28 @@ class AlquileresProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> crearAlquiler(Alquiler alquiler) async {
+  Future<bool> crearAlquiler({
+    required String clienteId,
+    required List<int> articulosIds,
+    required List<int> trajesIds,
+    required DateTime fechaInicio,
+    required DateTime fechaFin,
+    required double montoAlquiler,
+    required double garantia,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse(ApiConfig.alquileres),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(alquiler.toJson()),
+        body: json.encode({
+          'cliente_id': clienteId,
+          'articulos_ids': articulosIds,
+          'trajes_ids': trajesIds,
+          'fecha_inicio': fechaInicio.toIso8601String(),
+          'fecha_fin': fechaFin.toIso8601String(),
+          'monto_alquiler': montoAlquiler,
+          'garantia': garantia,
+        }),
       );
 
       if (response.statusCode == 201) {
