@@ -429,7 +429,9 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                     icon: const Icon(Icons.checkroom),
                     label: const Text('Artículos Sueltos'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 12),
+                      minimumSize: const Size(0, 56),
                     ),
                   ),
                 ),
@@ -440,7 +442,9 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                     icon: const Icon(Icons.style),
                     label: const Text('Desde Traje'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 12),
+                      minimumSize: const Size(0, 56),
                     ),
                   ),
                 ),

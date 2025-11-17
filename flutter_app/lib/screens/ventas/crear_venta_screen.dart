@@ -52,22 +52,20 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSeccionCliente(),
-              const SizedBox(height: 24),
-              _buildSeccionArticulos(),
-              const SizedBox(height: 24),
-              _buildSeccionPago(),
-              const SizedBox(height: 24),
-              _buildSeccionObservaciones(),
-              const SizedBox(height: 32),
-              _buildBotonGuardar(),
-            ],
-          ),
+          children: [
+            _buildSeccionCliente(),
+            const SizedBox(height: 16),
+            _buildSeccionArticulos(),
+            const SizedBox(height: 16),
+            _buildSeccionPago(),
+            const SizedBox(height: 16),
+            _buildSeccionObservaciones(),
+            const SizedBox(height: 16),
+            _buildBotonGuardar(),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
@@ -86,19 +84,20 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
             TextFormField(
               controller: _dniController,
               decoration: InputDecoration(
-                labelText: 'DNI *',
-                helperText: '8 dígitos (busca automáticamente)',
+                labelText: 'DNI',
                 border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.badge),
+                helperText: 'Se autocompletará al ingresar 8 dígitos',
                 suffixIcon: _buscandoCliente
                     ? const Padding(
                         padding: EdgeInsets.all(12),
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       )
-                    : IconButton(
-                        icon: const Icon(Icons.search),
-                        onPressed: _buscarClientePorDni,
-                        tooltip: 'Buscar cliente',
-                      ),
+                    : null,
               ),
               keyboardType: TextInputType.number,
               maxLength: 8,
@@ -111,35 +110,34 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                     _telefonoController.clear();
                   });
                 }
-                // Buscar automáticamente cuando el DNI tenga 8 dígitos
                 if (value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
                   _buscarClientePorDni();
                 }
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _nombreController,
               decoration: const InputDecoration(
-                labelText: 'Nombre Completo *',
+                labelText: 'Nombre Completo',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
               ),
               validator: Validators.validateNombre,
               textCapitalization: TextCapitalization.words,
-              enabled: _clienteExistente == null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _telefonoController,
               decoration: const InputDecoration(
-                labelText: 'Teléfono *',
-                helperText: '9 dígitos, inicia con 9',
+                labelText: 'Teléfono',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.phone),
+                helperText: '9 dígitos, inicia con 9',
               ),
               keyboardType: TextInputType.phone,
               maxLength: 9,
               validator: Validators.validateTelefono,
-              enabled: _clienteExistente == null,
             ),
           ],
         ),
@@ -161,41 +159,33 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Artículos',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text('Total: ${currencyFormat.format(total)}',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green)),
-              ],
-            ),
+            const Text('Seleccionar Artículos',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: _seleccionarArticulos,
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Seleccionar Artículos'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
+                    icon: const Icon(Icons.checkroom),
+                    label: const Text('Artículos Sueltos'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 12),
+                      minimumSize: const Size(0, 56),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: _seleccionarTraje,
-                    icon: const Icon(Icons.checkroom),
-                    label: const Text('Seleccionar Traje'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.all(16),
-                      backgroundColor: Colors.blue,
+                    icon: const Icon(Icons.style),
+                    label: const Text('Desde Traje'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 12),
+                      minimumSize: const Size(0, 56),
                     ),
                   ),
                 ),
@@ -205,38 +195,85 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Artículos Seleccionados',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_articulosSeleccionados.length}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _articulosSeleccionados.length,
                 itemBuilder: (context, index) {
                   final articulo = _articulosSeleccionados[index];
-                  return ListTile(
-                    leading: const Icon(Icons.shopping_bag),
-                    title: Text(articulo.nombre),
-                    subtitle: Text(
-                        '${articulo.tipo.toUpperCase()} - ${articulo.codigo}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          currencyFormat.format(articulo.precioVenta),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle,
-                              color: Colors.red),
-                          onPressed: () {
-                            setState(() {
-                              _articulosSeleccionados.removeAt(index);
-                            });
-                          },
-                        ),
-                      ],
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.green.shade100,
+                        child: const Icon(Icons.shopping_bag,
+                            color: Colors.green, size: 20),
+                      ),
+                      title: Text(articulo.nombre,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                          '${articulo.tipo.toUpperCase()} - ${articulo.codigo}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            currencyFormat.format(articulo.precioVenta),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.green),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline,
+                                color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                _articulosSeleccionados.removeAt(index);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total:',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(currencyFormat.format(total),
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green)),
+                ],
               ),
             ],
           ],
@@ -303,18 +340,55 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
   }
 
   Widget _buildBotonGuardar() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _articulosSeleccionados.isEmpty ? null : _guardarVenta,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.all(20),
-          backgroundColor: Colors.green,
-          disabledBackgroundColor: Colors.grey,
-        ),
-        child: const Text(
-          'GUARDAR VENTA',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    final currencyFormat =
+        NumberFormat.currency(symbol: 'S/ ', decimalDigits: 2);
+    final total = _articulosSeleccionados.fold<double>(
+      0,
+      (sum, art) => sum + art.precioVenta,
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'TOTAL A PAGAR:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  currencyFormat.format(total),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed:
+                    _articulosSeleccionados.isEmpty ? null : _guardarVenta,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
+                ),
+                child: const Text(
+                  'GUARDAR VENTA',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

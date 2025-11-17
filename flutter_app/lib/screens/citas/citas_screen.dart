@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/citas_provider.dart';
-import '../../providers/clientes_provider.dart';
 import '../../models/cita.dart';
-import '../../models/cliente.dart';
+import 'crear_cita_screen.dart';
 
 class CitasScreen extends StatefulWidget {
   const CitasScreen({super.key});
@@ -59,7 +58,7 @@ class _CitasScreenState extends State<CitasScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _mostrarDialogoNuevaCita,
+        onPressed: _irACrearCita,
         icon: const Icon(Icons.add),
         label: const Text('Nueva Cita'),
         backgroundColor: Colors.blue,
@@ -246,175 +245,17 @@ class _CitasScreenState extends State<CitasScreen>
     }
   }
 
-  Future<void> _mostrarDialogoNuevaCita() async {
-    final clientesProvider =
-        Provider.of<ClientesProvider>(context, listen: false);
-    await clientesProvider.cargarClientes();
-
-    if (!mounted) return;
-
-    Cliente? clienteSeleccionado;
-    DateTime fechaSeleccionada = DateTime.now().add(const Duration(hours: 1));
-    TimeOfDay horaSeleccionada = TimeOfDay.now();
-    String tipoSeleccionado = 'alquiler';
-    final descripcionController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Nueva Cita'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<Cliente>(
-                  decoration: const InputDecoration(
-                    labelText: 'Cliente *',
-                    border: OutlineInputBorder(),
-                  ),
-                  value: clienteSeleccionado,
-                  items: clientesProvider.clientes
-                      .where((c) => !c.enPapelera)
-                      .map((cliente) => DropdownMenuItem(
-                            value: cliente,
-                            child: Text('${cliente.nombre} - ${cliente.dni}'),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    setDialogState(() => clienteSeleccionado = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo de Cita *',
-                    border: OutlineInputBorder(),
-                  ),
-                  value: tipoSeleccionado,
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'alquiler', child: Text('Alquiler')),
-                    DropdownMenuItem(
-                        value: 'prueba', child: Text('Prueba de Terno')),
-                    DropdownMenuItem(
-                        value: 'devolucion', child: Text('Devolución')),
-                    DropdownMenuItem(value: 'otro', child: Text('Otro')),
-                  ],
-                  onChanged: (value) {
-                    setDialogState(() => tipoSeleccionado = value!);
-                  },
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: () async {
-                    final fecha = await showDatePicker(
-                      context: context,
-                      initialDate: fechaSeleccionada,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (fecha != null) {
-                      setDialogState(() => fechaSeleccionada = fecha);
-                    }
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Fecha',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    child: Text(
-                        DateFormat('dd/MM/yyyy').format(fechaSeleccionada)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: () async {
-                    final hora = await showTimePicker(
-                      context: context,
-                      initialTime: horaSeleccionada,
-                    );
-                    if (hora != null) {
-                      setDialogState(() => horaSeleccionada = hora);
-                    }
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Hora',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.access_time),
-                    ),
-                    child: Text(horaSeleccionada.format(context)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descripcionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción / Notas',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (clienteSeleccionado == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Debe seleccionar un cliente')),
-                  );
-                  return;
-                }
-
-                final fechaHora = DateTime(
-                  fechaSeleccionada.year,
-                  fechaSeleccionada.month,
-                  fechaSeleccionada.day,
-                  horaSeleccionada.hour,
-                  horaSeleccionada.minute,
-                );
-
-                final nuevaCita = Cita(
-                  clienteId: clienteSeleccionado!.id!,
-                  fechaHora: fechaHora,
-                  tipo: tipoSeleccionado,
-                  descripcion: descripcionController.text.isEmpty
-                      ? null
-                      : descripcionController.text,
-                );
-
-                final provider =
-                    Provider.of<CitasProvider>(context, listen: false);
-                final resultado = await provider.crearCita(nuevaCita);
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(resultado['success']
-                          ? 'Cita creada exitosamente'
-                          : 'Error al crear cita'),
-                      backgroundColor:
-                          resultado['success'] ? Colors.green : Colors.red,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
+  Future<void> _irACrearCita() async {
+    final resultado = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CrearCitaScreen(),
       ),
     );
+
+    if (resultado == true) {
+      _cargarDatos();
+    }
   }
 
   void _mostrarDetalleCita(Cita cita) {

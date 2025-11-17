@@ -103,44 +103,56 @@ class _InicioScreenState extends State<InicioScreen> {
                           'Alquileres',
                           Icons.event_available,
                           Colors.blue,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const AlquileresScreen()),
-                          ),
+                          () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AlquileresScreen()),
+                            );
+                            _cargarResumenDia();
+                          },
                         ),
                         _buildMenuCard(
                           context,
                           'Ventas',
                           Icons.shopping_cart,
                           Colors.green,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const VentasScreen()),
-                          ),
+                          () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const VentasScreen()),
+                            );
+                            _cargarResumenDia();
+                          },
                         ),
                         _buildMenuCard(
                           context,
                           'Inventario',
                           Icons.inventory_2,
                           Colors.orange,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const InventarioScreen()),
-                          ),
+                          () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const InventarioScreen()),
+                            );
+                            _cargarResumenDia();
+                          },
                         ),
                         _buildMenuCard(
                           context,
                           'Citas',
                           Icons.calendar_today,
                           Colors.purple,
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const CitasScreen()),
-                          ),
+                          () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const CitasScreen()),
+                            );
+                            _cargarResumenDia();
+                          },
                         ),
                       ],
                     ),

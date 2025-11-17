@@ -48,7 +48,7 @@ router.get('/resumen-dia', async (req, res) => {
       .from('citas')
       .select('*')
       .eq('estado', 'pendiente')
-      .gte('fecha', hoy.toISOString());
+      .gte('fecha_hora', hoy.toISOString());
 
     res.json({
       alquileres_activos: alquileres?.length || 0,

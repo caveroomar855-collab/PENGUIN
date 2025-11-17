@@ -151,10 +151,19 @@ flutter run
 
 ### Reportes
 - Resumen del día en tiempo real
-- Reportes de alquileres por rango de fechas
-- Reportes de ventas por rango de fechas
-- Generación de PDF (en desarrollo)
+- Reportes de alquileres por rango de fechas con generación de PDF
+- Reportes de ventas por rango de fechas con generación de PDF
+- Tablas detalladas con artículos incluidos
 - Cálculo correcto de ganancias (considerando devoluciones)
+
+### Citas
+- Crear citas para alquileres, pruebas, devoluciones u otros
+- Auto-búsqueda de clientes por DNI
+- Selección de fecha y hora
+- Seguimiento de citas pendientes
+- Historial completo de citas
+- Cambio de estado (completar/cancelar)
+- Sistema de notificaciones visual
 
 ### Configuración
 - Nombre del empleado
@@ -261,8 +270,8 @@ flutter pub get
 
 ## 📈 Roadmap
 
-- [ ] Implementar módulo de Citas completo
-- [ ] Generación completa de PDF
+- [x] Implementar módulo de Citas completo
+- [x] Generación completa de PDF con reportes detallados
 - [ ] Sistema de notificaciones push
 - [ ] Backup automático de datos
 - [ ] Dashboard con gráficos

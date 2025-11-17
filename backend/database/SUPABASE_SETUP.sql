@@ -154,7 +154,7 @@ CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_ventas_estado ON ventas(estado);
 CREATE INDEX IF NOT EXISTS idx_ventas_created ON ventas(created_at);
 
-CREATE INDEX IF NOT EXISTS idx_citas_fecha ON citas(fecha);
+CREATE INDEX IF NOT EXISTS idx_citas_fecha_hora ON citas(fecha_hora);
 CREATE INDEX IF NOT EXISTS idx_citas_estado ON citas(estado);
 
 -- ============================================================================
