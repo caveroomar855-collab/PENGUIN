@@ -1,0 +1,49 @@
+name: penguin_ternos
+description: Sistema de gestión de alquiler y venta de ternos
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI
+  cupertino_icons: ^1.0.2
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # HTTP & API
+  http: ^1.1.2
+  dio: ^5.4.0
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  
+  # PDF Generation
+  pdf: ^3.10.7
+  printing: ^5.11.1
+  path_provider: ^2.1.1
+  
+  # Date & Time
+  intl: ^0.18.1
+  
+  # Others
+  uuid: ^4.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # assets:
+  #   - assets/images/
+  #   - assets/logo.png
