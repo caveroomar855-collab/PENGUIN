@@ -30,7 +30,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarDatosIniciales();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarDatosIniciales();
+    });
   }
 
   Future<void> _cargarDatosIniciales() async {

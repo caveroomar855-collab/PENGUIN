@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'screens/splash_screen.dart';
 import 'providers/theme_provider.dart';
 import 'providers/config_provider.dart';
@@ -8,7 +9,9 @@ import 'providers/alquileres_provider.dart';
 import 'providers/ventas_provider.dart';
 import 'providers/inventario_provider.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('es_ES', null);
   runApp(const MyApp());
 }
 
@@ -49,9 +52,8 @@ class MyApp extends StatelessWidget {
               ),
               appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
             ),
-            themeMode: themeProvider.isDarkMode
-                ? ThemeMode.dark
-                : ThemeMode.light,
+            themeMode:
+                themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             home: const SplashScreen(),
           );
         },

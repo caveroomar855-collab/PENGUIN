@@ -12,128 +12,465 @@ class ClientesScreen extends StatefulWidget {
 
 class _ClientesScreenState extends State<ClientesScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  bool _mostrarPapelera = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarClientes();
+    });
+  }
+
+  Future<void> _cargarClientes() async {
+    final provider = Provider.of<ClientesProvider>(context, listen: false);
+    await provider.cargarClientes();
+  }
+
+  List<Cliente> _filtrarClientes(List<Cliente> clientes) {
+    final query = _searchController.text.toLowerCase();
+    return clientes.where((cliente) {
+      final coincide = cliente.dni.toLowerCase().contains(query) ||
+          cliente.nombre.toLowerCase().contains(query) ||
+          cliente.telefono.toLowerCase().contains(query);
+
+      return _mostrarPapelera
+          ? cliente.enPapelera
+          : !cliente.enPapelera && coincide;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Clientes'),
+        title: Text(_mostrarPapelera ? 'Papelera' : 'Clientes'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: Icon(_mostrarPapelera ? Icons.arrow_back : Icons.delete),
             onPressed: () {
-              // TODO: Navegar a papelera
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Papelera - En desarrollo')),
-              );
+              setState(() => _mostrarPapelera = !_mostrarPapelera);
             },
+            tooltip: _mostrarPapelera ? 'Volver' : 'Ver Papelera',
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar cliente por DNI o nombre...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+      body: Consumer<ClientesProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading && provider.clientes.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final clientesFiltrados = _filtrarClientes(provider.clientes);
+
+          return Column(
+            children: [
+              if (!_mostrarPapelera)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por DNI, nombre o teléfono',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                setState(() => _searchController.clear());
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _cargarClientes,
+                  child: clientesFiltrados.isEmpty
+                      ? Center(
+                          child: Text(
+                            _mostrarPapelera
+                                ? 'No hay clientes en la papelera'
+                                : 'No hay clientes',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: clientesFiltrados.length,
+                          padding: const EdgeInsets.all(8),
+                          itemBuilder: (context, index) {
+                            final cliente = clientesFiltrados[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                  vertical: 4, horizontal: 8),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  child: Text(
+                                    cliente.nombre[0].toUpperCase(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                title: Text(
+                                  cliente.nombre,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('DNI: ${cliente.dni}'),
+                                    Text('Tel: ${cliente.telefono}'),
+                                  ],
+                                ),
+                                trailing: _mostrarPapelera
+                                    ? IconButton(
+                                        icon: const Icon(Icons.restore,
+                                            color: Colors.green),
+                                        onPressed: () =>
+                                            _restaurarCliente(cliente),
+                                        tooltip: 'Restaurar',
+                                      )
+                                    : PopupMenuButton(
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'editar',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.edit, size: 20),
+                                                SizedBox(width: 8),
+                                                Text('Editar'),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'eliminar',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete,
+                                                    size: 20,
+                                                    color: Colors.red),
+                                                SizedBox(width: 8),
+                                                Text('Eliminar',
+                                                    style: TextStyle(
+                                                        color: Colors.red)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                        onSelected: (value) {
+                                          if (value == 'editar') {
+                                            _mostrarDialogoEditar(cliente);
+                                          } else if (value == 'eliminar') {
+                                            _confirmarEliminar(cliente);
+                                          }
+                                        },
+                                      ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
-            ),
-          ),
-          Expanded(
-            child: Consumer<ClientesProvider>(
-              builder: (context, provider, child) {
-                if (provider.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final clientes = provider.clientes.where((cliente) {
-                  return cliente.dni.toLowerCase().contains(_searchQuery) ||
-                      cliente.nombre.toLowerCase().contains(_searchQuery);
-                }).toList();
-
-                if (clientes.isEmpty) {
-                  return const Center(
-                    child: Text('No hay clientes registrados'),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: clientes.length,
-                  itemBuilder: (context, index) {
-                    final cliente = clientes[index];
-                    return _buildClienteCard(cliente);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Crear cliente
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Crear cliente - En desarrollo')),
+            ],
           );
         },
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Cliente'),
+      ),
+      floatingActionButton: _mostrarPapelera
+          ? null
+          : FloatingActionButton(
+              onPressed: _mostrarDialogoCrear,
+              child: const Icon(Icons.add),
+            ),
+    );
+  }
+
+  void _mostrarDialogoCrear() {
+    final dniController = TextEditingController();
+    final nombreController = TextEditingController();
+    final telefonoController = TextEditingController();
+    final emailController = TextEditingController();
+    final descripcionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nuevo Cliente'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: dniController,
+                decoration: const InputDecoration(
+                  labelText: 'DNI *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre Completo *',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: telefonoController,
+                decoration: const InputDecoration(
+                  labelText: 'Teléfono *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descripcionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción / Notas',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (dniController.text.isEmpty ||
+                  nombreController.text.isEmpty ||
+                  telefonoController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('DNI, Nombre y Teléfono son obligatorios')),
+                );
+                return;
+              }
+
+              final provider =
+                  Provider.of<ClientesProvider>(context, listen: false);
+              final nuevoCliente = Cliente(
+                dni: dniController.text,
+                nombre: nombreController.text,
+                telefono: telefonoController.text,
+                email:
+                    emailController.text.isEmpty ? null : emailController.text,
+                descripcion: descripcionController.text.isEmpty
+                    ? null
+                    : descripcionController.text,
+              );
+
+              final resultado = await provider.crearCliente(nuevoCliente);
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(resultado['success']
+                        ? 'Cliente creado exitosamente'
+                        : 'Error al crear cliente'),
+                    backgroundColor:
+                        resultado['success'] ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildClienteCard(Cliente cliente) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          child: Text(cliente.nombre[0].toUpperCase()),
+  void _mostrarDialogoEditar(Cliente cliente) {
+    final dniController = TextEditingController(text: cliente.dni);
+    final nombreController = TextEditingController(text: cliente.nombre);
+    final telefonoController = TextEditingController(text: cliente.telefono);
+    final emailController = TextEditingController(text: cliente.email ?? '');
+    final descripcionController =
+        TextEditingController(text: cliente.descripcion ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Cliente'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: dniController,
+                decoration: const InputDecoration(
+                  labelText: 'DNI *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre Completo *',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: telefonoController,
+                decoration: const InputDecoration(
+                  labelText: 'Teléfono *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descripcionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción / Notas',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
-        title: Text(
-          cliente.nombre,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('DNI: ${cliente.dni}'),
-            Text('Tel: ${cliente.telefono}'),
-          ],
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.more_vert),
-          onPressed: () {
-            // TODO: Mostrar opciones
-          },
-        ),
-        onTap: () {
-          // TODO: Ver detalles
-        },
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (dniController.text.isEmpty ||
+                  nombreController.text.isEmpty ||
+                  telefonoController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('DNI, Nombre y Teléfono son obligatorios')),
+                );
+                return;
+              }
+
+              final provider =
+                  Provider.of<ClientesProvider>(context, listen: false);
+              final clienteActualizado = Cliente(
+                id: cliente.id,
+                dni: dniController.text,
+                nombre: nombreController.text,
+                telefono: telefonoController.text,
+                email:
+                    emailController.text.isEmpty ? null : emailController.text,
+                descripcion: descripcionController.text.isEmpty
+                    ? null
+                    : descripcionController.text,
+              );
+
+              final resultado = await provider.actualizarCliente(
+                  cliente.id!, clienteActualizado);
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(resultado
+                        ? 'Cliente actualizado exitosamente'
+                        : 'Error al actualizar cliente'),
+                    backgroundColor: resultado ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
       ),
     );
+  }
+
+  void _confirmarEliminar(Cliente cliente) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar eliminación'),
+        content: Text('¿Enviar a papelera al cliente ${cliente.nombre}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final provider =
+                  Provider.of<ClientesProvider>(context, listen: false);
+              final resultado = await provider.enviarAPapelera(cliente.id!);
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(resultado['success']
+                        ? 'Cliente enviado a papelera'
+                        : 'Error al eliminar cliente'),
+                    backgroundColor:
+                        resultado['success'] ? Colors.orange : Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _restaurarCliente(Cliente cliente) async {
+    final provider = Provider.of<ClientesProvider>(context, listen: false);
+    final resultado = await provider.restaurarDePapelera(cliente.id!);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(resultado
+              ? 'Cliente restaurado exitosamente'
+              : 'Error al restaurar cliente'),
+          backgroundColor: resultado ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   @override
