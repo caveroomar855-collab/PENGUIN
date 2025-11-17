@@ -71,11 +71,12 @@ router.post('/', async (req, res) => {
 
     if (ventaError) throw ventaError;
 
-    // Insertar artículos de la venta
+    // Insertar artículos de la venta con cantidad
     const articulosData = articulos.map(art => ({
       venta_id: venta.id,
       articulo_id: art.id,
-      precio: art.precio_venta
+      precio: art.precio_venta,
+      cantidad: art.cantidad || 1 // Default 1 si no se especifica
     }));
 
     const { error: articulosError } = await supabase
@@ -84,13 +85,7 @@ router.post('/', async (req, res) => {
 
     if (articulosError) throw articulosError;
 
-    // Actualizar estado de artículos a vendido
-    for (const art of articulos) {
-      await supabase
-        .from('articulos')
-        .update({ estado: 'vendido' })
-        .eq('id', art.id);
-    }
+    // Los triggers de la base de datos se encargan de actualizar el inventario automáticamente
 
     res.status(201).json(venta);
   } catch (error) {
@@ -122,6 +117,7 @@ router.post('/:id/devolucion', async (req, res) => {
     }
 
     // Marcar venta como devuelta
+    // El trigger de la base de datos se encarga de restaurar el inventario automáticamente
     const { data, error } = await supabase
       .from('ventas')
       .update({
@@ -133,14 +129,6 @@ router.post('/:id/devolucion', async (req, res) => {
       .single();
 
     if (error) throw error;
-
-    // Restaurar artículos a disponible
-    for (const artVenta of venta.venta_articulos) {
-      await supabase
-        .from('articulos')
-        .update({ estado: 'disponible' })
-        .eq('id', artVenta.articulo_id);
-    }
 
     res.json(data);
   } catch (error) {

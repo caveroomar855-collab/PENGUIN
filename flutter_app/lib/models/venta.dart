@@ -60,7 +60,11 @@ class Venta {
       'total': total,
       'metodo_pago': metodoPago,
       'articulos': articulos
-          .map((a) => {'id': a.articuloId, 'precio_venta': a.precio})
+          .map((a) => {
+                'id': a.articuloId,
+                'precio_venta': a.precio,
+                'cantidad': a.cantidad
+              })
           .toList(),
     };
   }
@@ -81,6 +85,7 @@ class VentaArticulo {
   final String articuloId;
   final Articulo? articulo;
   final double precio;
+  final int cantidad;
 
   VentaArticulo({
     this.id,
@@ -88,6 +93,7 @@ class VentaArticulo {
     required this.articuloId,
     this.articulo,
     required this.precio,
+    this.cantidad = 1,
   });
 
   factory VentaArticulo.fromJson(Map<String, dynamic> json) {
@@ -102,6 +108,7 @@ class VentaArticulo {
       articuloId: json['articulo_id'],
       articulo: art,
       precio: double.parse(json['precio'].toString()),
+      cantidad: json['cantidad'] ?? 1,
     );
   }
 }

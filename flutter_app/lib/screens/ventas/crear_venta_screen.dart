@@ -26,6 +26,8 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
 
   Cliente? _clienteExistente;
   List<Articulo> _articulosSeleccionados = [];
+  final Map<String, int> _cantidades =
+      {}; // Mapa para rastrear cantidades por artículo ID
   String _metodoPago = 'efectivo';
   bool _buscandoCliente = false;
 
@@ -148,7 +150,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
   Widget _buildSeccionArticulos() {
     final total = _articulosSeleccionados.fold<double>(
       0,
-      (sum, art) => sum + art.precioVenta,
+      (sum, art) => sum + (art.precioVenta * (_cantidades[art.id!] ?? 1)),
     );
     final currencyFormat =
         NumberFormat.currency(symbol: 'S/ ', decimalDigits: 2);
@@ -222,37 +224,135 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                 itemCount: _articulosSeleccionados.length,
                 itemBuilder: (context, index) {
                   final articulo = _articulosSeleccionados[index];
+                  final cantidad = _cantidades[articulo.id!] ?? 1;
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.green.shade100,
-                        child: const Icon(Icons.shopping_bag,
-                            color: Colors.green, size: 20),
-                      ),
-                      title: Text(articulo.nombre,
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                          '${articulo.tipo.toUpperCase()} - ${articulo.codigo}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
                         children: [
-                          Text(
-                            currencyFormat.format(articulo.precioVenta),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.green),
+                          // Primera fila: Info y eliminar
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.green.shade100,
+                                child: const Icon(Icons.shopping_bag,
+                                    color: Colors.green, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      articulo.nombre,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14),
+                                    ),
+                                    Text(
+                                      '${articulo.tipo.toUpperCase()} - ${articulo.codigo}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[700]),
+                                    ),
+                                    Text(
+                                      'Disponibles: ${articulo.cantidadDisponible}',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red, size: 20),
+                                onPressed: () {
+                                  setState(() {
+                                    _articulosSeleccionados.removeAt(index);
+                                    _cantidades.remove(articulo.id);
+                                  });
+                                },
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline,
-                                color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                _articulosSeleccionados.removeAt(index);
-                              });
-                            },
+                          const SizedBox(height: 8),
+                          // Segunda fila: Cantidad y precio
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              const Text(
+                                'Cantidad:',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline,
+                                    size: 20),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: cantidad > 1
+                                    ? () {
+                                        setState(() {
+                                          _cantidades[articulo.id!] =
+                                              cantidad - 1;
+                                        });
+                                      }
+                                    : null,
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$cantidad',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline,
+                                    size: 20),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed:
+                                    cantidad < articulo.cantidadDisponible
+                                        ? () {
+                                            setState(() {
+                                              _cantidades[articulo.id!] =
+                                                  cantidad + 1;
+                                            });
+                                          }
+                                        : null,
+                              ),
+                              const SizedBox(width: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    currencyFormat.format(
+                                        articulo.precioVenta * cantidad),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.green),
+                                  ),
+                                  if (cantidad > 1)
+                                    Text(
+                                      '${currencyFormat.format(articulo.precioVenta)} c/u',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600]),
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -344,7 +444,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
         NumberFormat.currency(symbol: 'S/ ', decimalDigits: 2);
     final total = _articulosSeleccionados.fold<double>(
       0,
-      (sum, art) => sum + art.precioVenta,
+      (sum, art) => sum + (art.precioVenta * (_cantidades[art.id!] ?? 1)),
     );
 
     return Card(
@@ -453,6 +553,12 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
     if (seleccionados != null) {
       setState(() {
         _articulosSeleccionados = seleccionados;
+        // Inicializar cantidades para nuevos artículos
+        for (var articulo in seleccionados) {
+          if (!_cantidades.containsKey(articulo.id!)) {
+            _cantidades[articulo.id!] = 1;
+          }
+        }
       });
     }
   }
@@ -499,6 +605,12 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
       if (seleccionados != null) {
         setState(() {
           _articulosSeleccionados = seleccionados;
+          // Inicializar cantidades para nuevos artículos
+          for (var articulo in seleccionados) {
+            if (!_cantidades.containsKey(articulo.id!)) {
+              _cantidades[articulo.id!] = 1;
+            }
+          }
         });
       }
     }
@@ -544,7 +656,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
 
     final total = _articulosSeleccionados.fold<double>(
       0,
-      (sum, art) => sum + art.precioVenta,
+      (sum, art) => sum + (art.precioVenta * (_cantidades[art.id!] ?? 1)),
     );
 
     final nuevaVenta = Venta(
@@ -556,6 +668,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                 ventaId: '',
                 articuloId: a.id!,
                 precio: a.precioVenta,
+                cantidad: _cantidades[a.id!] ?? 1,
               ))
           .toList(),
     );
