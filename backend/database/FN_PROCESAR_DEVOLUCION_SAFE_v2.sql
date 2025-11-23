@@ -1,6 +1,6 @@
--- Versión segura de la función de procesamiento de devoluciones
--- Esta versión sólo intentará eliminar la fila del artículo cuando su cantidad previa sea 1.
--- Si la cantidad previa es > 1, simplemente decrementa en 1.
+-- Versión final (v2) segura de la función de procesamiento de devoluciones
+-- Selecciona hasta N filas unitarias en alquiler_articulos y usa
+-- la cantidad realmente afectada para actualizar articulos.
 
 CREATE OR REPLACE FUNCTION public.fn_procesar_devolucion_safe(
   p_alquiler uuid,
@@ -109,5 +109,3 @@ BEGIN
   RETURN;
 END;
 $$;
-
--- Fin de archivo
