@@ -218,10 +218,12 @@ router.post('/:id/devolucion', async (req, res) => {
 
     // Llamada RPC atómica en la base para procesar la devolución
     console.log('Llamando RPC fn_procesar_devolucion_safe para alquiler:', req.params.id);
+    console.log('Payload RPC p_articulos (object):', articulos);
     const { data: rpcData, error: rpcError } = await supabase
       .rpc('fn_procesar_devolucion_safe', {
         p_alquiler: req.params.id,
-        p_articulos: JSON.stringify(articulos),
+        // pasar como JSON/Array para que Supabase lo reciba como jsonb, NO como string
+        p_articulos: articulos,
         p_mora: mora_total,
         p_garantia_retenida: garantia_retenida,
         p_descripcion: descripcion_retencion || null
