@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import '../models/articulo.dart';
 import '../models/traje.dart';
 import '../config/api_config.dart';
@@ -26,21 +28,30 @@ class InventarioProvider extends ChangeNotifier {
   // Resumen por estados (número de artículos con >0 unidades por estado)
   Map<String, int> _estadosResumen = {};
   Map<String, List<Map<String, dynamic>>> _estadosListCache = {};
+  Map<String, String> _estadoErrors = {};
 
   Map<String, int> get estadosResumen => _estadosResumen;
+  String? getEstadoError(String tipo) => _estadoErrors[tipo];
 
   List<Map<String, dynamic>> getEstadoList(String tipo) =>
       _estadosListCache[tipo] ?? [];
 
   Future<void> cargarResumenEstados() async {
     try {
-      final response =
-          await http.get(Uri.parse('${ApiConfig.inventario}/estados/summary'));
+      final uri = Uri.parse('${ApiConfig.inventario}/estados/summary');
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         _estadosResumen = data.map((k, v) => MapEntry(k, (v as num).toInt()));
         notifyListeners();
+      } else {
+        debugPrint(
+            'Error cargando resumen de estados: HTTP ${response.statusCode}');
       }
+    } on TimeoutException catch (e) {
+      debugPrint('Timeout cargando resumen de estados: $e');
+    } on SocketException catch (e) {
+      debugPrint('Network error cargando resumen de estados: $e');
     } catch (e) {
       debugPrint('Error cargando resumen de estados: $e');
     }
@@ -48,18 +59,31 @@ class InventarioProvider extends ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> cargarListaEstado(String tipo) async {
     try {
-      final response = await http
-          .get(Uri.parse('${ApiConfig.inventario}/estados/list/$tipo'));
+      _estadoErrors.remove(tipo);
+      final uri = Uri.parse('${ApiConfig.inventario}/estados/list/$tipo');
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final list = data.map((e) => Map<String, dynamic>.from(e)).toList();
         _estadosListCache[tipo] = list;
         notifyListeners();
         return list;
+      } else {
+        _estadoErrors[tipo] = 'HTTP ${response.statusCode}';
+        debugPrint(
+            'Error cargando lista de estado $tipo: HTTP ${response.statusCode}');
       }
+    } on TimeoutException catch (e) {
+      _estadoErrors[tipo] = 'Timeout';
+      debugPrint('Timeout cargando lista de estado $tipo: $e');
+    } on SocketException catch (e) {
+      _estadoErrors[tipo] = 'Network';
+      debugPrint('Network error cargando lista de estado $tipo: $e');
     } catch (e) {
+      _estadoErrors[tipo] = 'Error';
       debugPrint('Error cargando lista de estado $tipo: $e');
     }
+    notifyListeners();
     return _estadosListCache[tipo] ?? [];
   }
 

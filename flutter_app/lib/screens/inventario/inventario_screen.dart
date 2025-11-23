@@ -117,7 +117,6 @@ class _InventarioScreenState extends State<InventarioScreen>
               }
 
               var articulos = provider.articulos.where((a) {
-                // Filtro por búsqueda
                 if (_searchQuery.isNotEmpty) {
                   final matchSearch = a.nombre
                           .toLowerCase()
@@ -128,7 +127,6 @@ class _InventarioScreenState extends State<InventarioScreen>
                   if (!matchSearch) return false;
                 }
 
-                // Filtro por estado usando cantidades (un artículo puede aparecer en varios filtros)
                 if (_filtroEstado != 'todos') {
                   switch (_filtroEstado) {
                     case 'disponible':
@@ -204,7 +202,6 @@ class _InventarioScreenState extends State<InventarioScreen>
 
   Widget _buildArticuloCard(Articulo articulo) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    // Determine if there are units in each status
     final enMantenimiento = articulo.cantidadMantenimiento > 0;
     final disponibleEn = articulo.fechaDisponible;
 
@@ -219,10 +216,8 @@ class _InventarioScreenState extends State<InventarioScreen>
             color: Colors.white,
           ),
         ),
-        title: Text(
-          articulo.nombre,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text(articulo.nombre,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -249,14 +244,11 @@ class _InventarioScreenState extends State<InventarioScreen>
                       color: Colors.blue,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      '${articulo.cantidadAlquilada} alq.',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text('${articulo.cantidadAlquilada} alq.',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
                   ),
                 if (articulo.cantidadMantenimiento > 0)
                   Container(
@@ -267,21 +259,17 @@ class _InventarioScreenState extends State<InventarioScreen>
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      '${articulo.cantidadMantenimiento} mant.',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text('${articulo.cantidadMantenimiento} mant.',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
                   ),
                 if (enMantenimiento && disponibleEn != null) ...[
                   const SizedBox(width: 8),
-                  Text(
-                    'Hasta: ${dateFormat.format(disponibleEn)}',
-                    style: const TextStyle(fontSize: 11, color: Colors.orange),
-                  ),
+                  Text('Hasta: ${dateFormat.format(disponibleEn)}',
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.orange)),
                 ],
               ],
             ),
@@ -414,9 +402,6 @@ class _InventarioScreenState extends State<InventarioScreen>
   }
 
   Widget _buildTrajeCard(Traje traje) {
-    // Sum unit counts across the traje's artículos
-    // Disponibles for a traje = maximum number of complete sets we can assemble
-    // i.e. the minimum available units among the piezas (assuming 1 unit of each per traje)
     final disponibles = traje.articulos.isEmpty
         ? 0
         : traje.articulos
@@ -486,11 +471,8 @@ class _InventarioScreenState extends State<InventarioScreen>
           ...traje.articulos.map((articulo) {
             return ListTile(
               dense: true,
-              leading: Icon(
-                _getIconoTipo(articulo.tipo),
-                size: 20,
-                color: _getEstadoColor(articulo.estado),
-              ),
+              leading: Icon(_getIconoTipo(articulo.tipo),
+                  size: 20, color: _getEstadoColor(articulo.estado)),
               title: Text(articulo.nombre),
               subtitle: Text(
                   '${articulo.codigo} - Stock: ${articulo.cantidadDisponible}/${articulo.cantidad}'),
@@ -498,7 +480,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                   size: 12, color: _getEstadoColor(articulo.estado)),
               onTap: () => _mostrarDetalleArticulo(articulo),
             );
-          }),
+          }).toList(),
         ],
       ),
     );
@@ -510,15 +492,9 @@ class _InventarioScreenState extends State<InventarioScreen>
         Text(
           cantidad.toString(),
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+              fontSize: 24, fontWeight: FontWeight.bold, color: color),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -530,7 +506,6 @@ class _InventarioScreenState extends State<InventarioScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Use resumen por artículos (no suma de unidades)
         final resumen = provider.estadosResumen;
         final total = resumen['total'] ?? provider.articulos.length;
 
@@ -553,13 +528,37 @@ class _InventarioScreenState extends State<InventarioScreen>
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
+
                   final items = snapshot.data ?? [];
+                  final error = provider.getEstadoError(tipoKey);
+
+                  if ((items.isEmpty) && error != null) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                              child: Text('Error cargando: $error',
+                                  style: const TextStyle(color: Colors.red))),
+                          TextButton(
+                            onPressed: () {
+                              provider.cargarListaEstado(tipoKey);
+                            },
+                            child: const Text('Reintentar'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
                   if (items.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.all(16.0),
                       child: Text('No hay artículos'),
                     );
                   }
+
                   return Column(
                     children: items.map((a) {
                       return ListTile(
@@ -567,9 +566,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                         trailing: Text((a['cantidad'] ?? 0).toString(),
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold)),
-                        onTap: () async {
-                          // opcional: mostrar detalle local si se desea
-                        },
+                        onTap: () {},
                       );
                     }).toList(),
                   );
