@@ -33,6 +33,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('CrearAlquilerScreen.initState');
     _cargarDatos();
     _garantiaController.text = '50.00';
   }
@@ -92,6 +93,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
   Future<void> _seleccionarArticulos() async {
     final inventarioProvider =
         Provider.of<InventarioProvider>(context, listen: false);
+    debugPrint('CrearAlquilerScreen._seleccionarArticulos: start');
     final articulosDisponibles = inventarioProvider.articulos
         .where((a) => a.cantidadDisponible > 0)
         .toList();
@@ -111,6 +113,8 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
         esAlquiler: true,
       ),
     );
+    debugPrint(
+        'CrearAlquilerScreen._seleccionarArticulos: dialog closed, result=${seleccionados?.length}');
     if (!mounted) return;
 
     if (seleccionados != null) {
@@ -672,6 +676,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
 
   @override
   void dispose() {
+    debugPrint('CrearAlquilerScreen.dispose');
     _dniController.dispose();
     _nombreController.dispose();
     _telefonoController.dispose();
@@ -811,9 +816,10 @@ class __DialogoSeleccionArticulosState
                                         setState(() {
                                           final cur = _selectedQuantities[
                                               articulo.id!]!;
-                                          if (cur > 1)
+                                          if (cur > 1) {
                                             _selectedQuantities[articulo.id!] =
                                                 cur - 1;
+                                          }
                                         });
                                       },
                                     ),
@@ -827,9 +833,10 @@ class __DialogoSeleccionArticulosState
                                           final cur = _selectedQuantities[
                                               articulo.id!]!;
                                           final maxQty = disponible;
-                                          if (cur < maxQty)
+                                          if (cur < maxQty) {
                                             _selectedQuantities[articulo.id!] =
                                                 cur + 1;
+                                          }
                                         });
                                       },
                                     ),

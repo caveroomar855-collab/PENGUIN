@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/inventario_provider.dart';
+import 'historial_screen.dart';
 import '../../models/articulo.dart';
 import '../../models/traje.dart';
 
@@ -480,7 +481,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                   size: 12, color: _getEstadoColor(articulo.estado)),
               onTap: () => _mostrarDetalleArticulo(articulo),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -518,60 +519,102 @@ class _InventarioScreenState extends State<InventarioScreen>
             title: Text(label,
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('$cantidad artículos'),
+            onExpansionChanged: (open) {
+              if (open) {
+                // Trigger a background refresh when user opens the tile.
+                provider.cargarListaEstado(tipoKey);
+              }
+            },
             children: [
-              FutureBuilder<List<Map<String, dynamic>>>(
-                future: provider.cargarListaEstado(tipoKey),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
+              // Use provider state directly to avoid FutureBuilder waiting loops.
+              Builder(builder: (context) {
+                // Prefer the cached RPC list. If it's empty, build a fallback
+                // from the in-memory `articulos` so the user sees names + qty
+                // even when the list RPC times out.
+                final cachedItems = provider.getEstadoList(tipoKey);
+                final loading = provider.isLoadingEstado(tipoKey);
+                final error = provider.getEstadoError(tipoKey);
 
-                  final items = snapshot.data ?? [];
-                  final error = provider.getEstadoError(tipoKey);
+                List<Map<String, dynamic>> items = cachedItems;
+                if (items.isEmpty) {
+                  // Build fallback from articles in provider
+                  items = provider.articulos
+                      .map((a) {
+                        int qty = 0;
+                        switch (tipoKey) {
+                          case 'disponibles':
+                            qty = a.cantidadDisponible;
+                            break;
+                          case 'alquilados':
+                            qty = a.cantidadAlquilada;
+                            break;
+                          case 'mantenimiento':
+                            qty = a.cantidadMantenimiento;
+                            break;
+                          case 'vendidos':
+                            qty = a.cantidadVendida;
+                            break;
+                          case 'perdidos':
+                            qty = a.cantidadPerdida;
+                            break;
+                          default:
+                            qty = 0;
+                        }
+                        return {
+                          'id': a.id,
+                          'nombre': a.nombre,
+                          'cantidad': qty
+                        };
+                      })
+                      .where((m) => (m['cantidad'] as int) > 0)
+                      .toList();
+                }
 
-                  if ((items.isEmpty) && error != null) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                              child: Text('Error cargando: $error',
-                                  style: const TextStyle(color: Colors.red))),
-                          TextButton(
-                            onPressed: () {
-                              provider.cargarListaEstado(tipoKey);
-                            },
-                            child: const Text('Reintentar'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  if (items.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('No hay artículos'),
-                    );
-                  }
-
-                  return Column(
-                    children: items.map((a) {
-                      return ListTile(
-                        title: Text(a['nombre'] ?? ''),
-                        trailing: Text((a['cantidad'] ?? 0).toString(),
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        onTap: () {},
-                      );
-                    }).toList(),
+                if (loading) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
                   );
-                },
-              )
+                }
+
+                if ((items.isEmpty) && error != null) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                            child: Text('Error cargando: $error',
+                                style: const TextStyle(color: Colors.red))),
+                        TextButton(
+                          onPressed: () {
+                            provider.cargarListaEstado(tipoKey);
+                          },
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (items.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text('No hay artículos'),
+                  );
+                }
+
+                return Column(
+                  children: items.map((a) {
+                    return ListTile(
+                      title: Text(a['nombre'] ?? ''),
+                      trailing: Text((a['cantidad'] ?? 0).toString(),
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      onTap: () {},
+                    );
+                  }).toList(),
+                );
+              })
             ],
           );
         }
@@ -581,20 +624,89 @@ class _InventarioScreenState extends State<InventarioScreen>
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Historial compacto (hasta 3 eventos)
+              Builder(builder: (context) {
+                final provider = Provider.of<InventarioProvider>(context);
+                final recent = provider.historial.take(3).toList();
+                return Card(
+                  elevation: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Historial',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const HistorialScreen()));
+                              },
+                              child: const Text('Ver todo'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (recent.isEmpty)
+                          const Text('No hay eventos recientes',
+                              style: TextStyle(color: Colors.grey))
+                        else
+                          ...recent.map((e) {
+                            final ts =
+                                DateTime.tryParse(e['timestamp'] ?? '') ??
+                                    DateTime.now();
+                            final mensaje = e['mensaje'] ?? '';
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                      child: Text(mensaje,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis)),
+                                  const SizedBox(width: 8),
+                                  Text(DateFormat('dd/MM HH:mm').format(ts),
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 12)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              // Total de Artículos (compact)
               Card(
                 elevation: 4,
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.inventory_2,
-                          size: 60, color: Colors.blue),
-                      const SizedBox(height: 16),
-                      const Text('Total de Artículos',
-                          style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Total de Artículos',
+                              style:
+                                  TextStyle(fontSize: 14, color: Colors.grey)),
+                          SizedBox(height: 4),
+                        ],
+                      ),
                       Text(total.toString(),
                           style: const TextStyle(
-                              fontSize: 48,
+                              fontSize: 28,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue)),
                     ],
@@ -1346,7 +1458,7 @@ IconData _iconoTipoGlobal(String tipo) {
 }
 
 class _CrearTrajeDialog extends StatefulWidget {
-  const _CrearTrajeDialog({Key? key}) : super(key: key);
+  const _CrearTrajeDialog();
 
   @override
   State<_CrearTrajeDialog> createState() => __CrearTrajeDialogState();

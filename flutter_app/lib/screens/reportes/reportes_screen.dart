@@ -19,7 +19,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
   DateTime _fechaFin = DateTime.now();
   String _tipoReporte = 'alquileres';
   bool _cargando = false;
-  Map<String, dynamic>? _datosReporte;
+  // _datosReporte removed because it's not read elsewhere; use local vars when needed.
 
   @override
   Widget build(BuildContext context) {
@@ -638,7 +638,6 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
     setState(() {
       _cargando = false;
-      _datosReporte = datos;
     });
 
     if (datos == null) {
