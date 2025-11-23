@@ -394,7 +394,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text(
-                        'Total de ${_tipoReporte}:',
+                        'Total de $_tipoReporte:',
                         style: const pw.TextStyle(fontSize: 14),
                       ),
                       pw.Text(
@@ -517,7 +517,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               _celdaDato(currencyFormat.format(monto)),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -586,7 +586,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               _celdaDato(currencyFormat.format(monto)),
             ],
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -677,7 +677,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
               _buildResumenItem(
-                'Total de ${_tipoReporte}',
+                'Total de $_tipoReporte',
                 _tipoReporte == 'alquileres'
                     ? '${datos['total_alquileres'] ?? 0}'
                     : '${datos['total_ventas'] ?? 0}',
@@ -712,7 +712,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           style: const TextStyle(fontSize: 12),
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 )
               else if (_tipoReporte == 'ventas' &&
@@ -739,7 +739,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           style: const TextStyle(fontSize: 12),
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
             ],

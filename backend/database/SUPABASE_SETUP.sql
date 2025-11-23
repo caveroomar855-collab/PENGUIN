@@ -1,221 +1,438 @@
--- ============================================================================
--- PENGUIN TERNOS - SCHEMA COMPLETO PARA SUPABASE
--- ============================================================================
--- Ejecuta este script completo en el SQL Editor de Supabase
--- Ve a: SQL Editor > New Query > Pega este código > Run
--- ============================================================================
+create table public.alquiler_articulos (
+  id uuid not null default gen_random_uuid (),
+  alquiler_id uuid null,
+  articulo_id uuid null,
+  estado character varying(50) null default 'alquilado'::character varying,
+  created_at timestamp with time zone null default now(),
+  constraint alquiler_articulos_pkey primary key (id),
+  constraint alquiler_articulos_alquiler_id_fkey foreign KEY (alquiler_id) references alquileres (id) on delete CASCADE,
+  constraint alquiler_articulos_articulo_id_fkey foreign KEY (articulo_id) references articulos (id) on delete RESTRICT
+) TABLESPACE pg_default;
 
--- TABLA: Clientes
--- Almacena información de los clientes de la tienda
-CREATE TABLE IF NOT EXISTS clientes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  dni VARCHAR(20) UNIQUE NOT NULL,
-  nombre VARCHAR(255) NOT NULL,
-  telefono VARCHAR(20) NOT NULL,
-  email VARCHAR(255),
-  descripcion TEXT,
-  en_papelera BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create trigger trigger_actualizar_cantidades_alquiler
+after INSERT
+or DELETE
+or
+update on alquiler_articulos for EACH row
+execute FUNCTION actualizar_cantidades_articulo ();
 
--- TABLA: Artículos
--- Almacena los artículos individuales disponibles para alquiler/venta
-CREATE TABLE IF NOT EXISTS articulos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  codigo VARCHAR(50) UNIQUE NOT NULL,
-  nombre VARCHAR(255) NOT NULL,
-  tipo VARCHAR(50) NOT NULL, -- 'saco', 'chaleco', 'pantalon', 'camisa', 'zapato', 'extra'
-  talla VARCHAR(20),
-  color VARCHAR(50),
-  precio_alquiler DECIMAL(10, 2) NOT NULL,
-  precio_venta DECIMAL(10, 2) NOT NULL,
-  estado VARCHAR(50) DEFAULT 'disponible', -- 'disponible', 'alquilado', 'mantenimiento', 'vendido', 'perdido'
-  fecha_disponible TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create table public.alquileres (
+  id uuid not null default gen_random_uuid (),
+  cliente_id uuid null,
+  fecha_inicio date not null,
+  fecha_fin date not null,
+  fecha_devolucion timestamp with time zone null,
+  monto_alquiler numeric(10, 2) not null,
+  garantia numeric(10, 2) not null,
+  garantia_retenida numeric(10, 2) null default 0,
+  mora_cobrada numeric(10, 2) null default 0,
+  metodo_pago character varying(50) not null,
+  observaciones text null,
+  descripcion_retencion text null,
+  estado character varying(50) null default 'activo'::character varying,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint alquileres_pkey primary key (id),
+  constraint alquileres_cliente_id_fkey foreign KEY (cliente_id) references clientes (id) on delete RESTRICT
+) TABLESPACE pg_default;
 
--- TABLA: Trajes
--- Agrupaciones de artículos para facilitar la selección
-CREATE TABLE IF NOT EXISTS trajes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  nombre VARCHAR(255) NOT NULL,
-  descripcion TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create index IF not exists idx_alquileres_estado on public.alquileres using btree (estado) TABLESPACE pg_default;
 
--- TABLA: Relación Traje-Artículos
--- Relaciona trajes con sus artículos componentes
-CREATE TABLE IF NOT EXISTS traje_articulos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  traje_id UUID REFERENCES trajes(id) ON DELETE CASCADE,
-  articulo_id UUID REFERENCES articulos(id) ON DELETE CASCADE,
-  UNIQUE(traje_id, articulo_id)
-);
+create index IF not exists idx_alquileres_cliente on public.alquileres using btree (cliente_id) TABLESPACE pg_default;
 
--- TABLA: Alquileres
--- Registra los alquileres de artículos
-CREATE TABLE IF NOT EXISTS alquileres (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cliente_id UUID REFERENCES clientes(id) ON DELETE RESTRICT,
-  fecha_inicio DATE NOT NULL,
-  fecha_fin DATE NOT NULL,
-  fecha_devolucion TIMESTAMP WITH TIME ZONE,
-  monto_alquiler DECIMAL(10, 2) NOT NULL,
-  garantia DECIMAL(10, 2) NOT NULL,
-  garantia_retenida DECIMAL(10, 2) DEFAULT 0,
-  mora_cobrada DECIMAL(10, 2) DEFAULT 0,
-  metodo_pago VARCHAR(50) NOT NULL,
-  observaciones TEXT,
-  descripcion_retencion TEXT,
-  estado VARCHAR(50) DEFAULT 'activo', -- 'activo', 'devuelto', 'perdido'
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create index IF not exists idx_alquileres_fecha_inicio on public.alquileres using btree (fecha_inicio) TABLESPACE pg_default;
 
--- TABLA: Artículos en Alquileres
--- Relaciona alquileres con artículos específicos y su estado
-CREATE TABLE IF NOT EXISTS alquiler_articulos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  alquiler_id UUID REFERENCES alquileres(id) ON DELETE CASCADE,
-  articulo_id UUID REFERENCES articulos(id) ON DELETE RESTRICT,
-  estado VARCHAR(50) DEFAULT 'alquilado', -- 'alquilado', 'completo', 'dañado', 'perdido'
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create index IF not exists idx_alquileres_fecha_fin on public.alquileres using btree (fecha_fin) TABLESPACE pg_default;
 
--- TABLA: Ventas
--- Registra las ventas de artículos
-CREATE TABLE IF NOT EXISTS ventas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cliente_id UUID REFERENCES clientes(id) ON DELETE RESTRICT,
-  total DECIMAL(10, 2) NOT NULL,
-  metodo_pago VARCHAR(50) NOT NULL,
-  estado VARCHAR(50) DEFAULT 'completada', -- 'completada', 'devuelta'
-  fecha_devolucion TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create trigger trigger_actualizar_cantidades_al_devolver
+after
+update OF estado on alquileres for EACH row when (
+  old.estado::text = 'activo'::text
+  and new.estado::text = 'devuelto'::text
+)
+execute FUNCTION actualizar_cantidades_articulo ();
 
--- TABLA: Artículos en Ventas
--- Relaciona ventas con artículos específicos
-CREATE TABLE IF NOT EXISTS venta_articulos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  venta_id UUID REFERENCES ventas(id) ON DELETE CASCADE,
-  articulo_id UUID REFERENCES articulos(id) ON DELETE RESTRICT,
-  precio DECIMAL(10, 2) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create trigger update_alquileres_updated_at BEFORE
+update on alquileres for EACH row
+execute FUNCTION update_updated_at_column ();
 
--- TABLA: Citas
--- Almacena citas programadas con clientes
-CREATE TABLE IF NOT EXISTS citas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE,
-  fecha_hora TIMESTAMP WITH TIME ZONE NOT NULL,
-  tipo VARCHAR(50) NOT NULL, -- 'alquiler', 'prueba', 'devolucion', 'otro'
-  descripcion TEXT,
-  estado VARCHAR(50) DEFAULT 'pendiente', -- 'pendiente', 'completada', 'cancelada'
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create table public.articulos (
+  id uuid not null default gen_random_uuid (),
+  codigo character varying(50) not null,
+  nombre character varying(255) not null,
+  tipo character varying(50) not null,
+  talla character varying(20) null,
+  color character varying(50) null,
+  precio_alquiler numeric(10, 2) not null,
+  precio_venta numeric(10, 2) not null,
+  estado character varying(50) null default 'disponible'::character varying,
+  fecha_disponible timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  cantidad integer not null default 1,
+  cantidad_disponible integer not null default 1,
+  cantidad_alquilada integer not null default 0,
+  cantidad_mantenimiento integer not null default 0,
+  cantidad_vendida integer not null default 0,
+  cantidad_perdida integer not null default 0,
+  constraint articulos_pkey primary key (id),
+  constraint articulos_codigo_key unique (codigo)
+) TABLESPACE pg_default;
 
--- TABLA: Configuración
--- Almacena configuración global del sistema (solo una fila)
-CREATE TABLE IF NOT EXISTS configuracion (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  nombre_empleado VARCHAR(255) DEFAULT 'Empleado',
-  tema_oscuro BOOLEAN DEFAULT FALSE,
-  garantia_default DECIMAL(10, 2) DEFAULT 50.0,
-  mora_diaria DECIMAL(10, 2) DEFAULT 10.0,
-  dias_maximos_mora INTEGER DEFAULT 7,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create index IF not exists idx_articulos_estado on public.articulos using btree (estado) TABLESPACE pg_default;
 
--- ============================================================================
--- ÍNDICES para mejorar el rendimiento de las consultas
--- ============================================================================
+create index IF not exists idx_articulos_tipo on public.articulos using btree (tipo) TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_clientes_dni ON clientes(dni);
-CREATE INDEX IF NOT EXISTS idx_clientes_papelera ON clientes(en_papelera);
-CREATE INDEX IF NOT EXISTS idx_clientes_nombre ON clientes(nombre);
+create index IF not exists idx_articulos_codigo on public.articulos using btree (codigo) TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_articulos_estado ON articulos(estado);
-CREATE INDEX IF NOT EXISTS idx_articulos_tipo ON articulos(tipo);
-CREATE INDEX IF NOT EXISTS idx_articulos_codigo ON articulos(codigo);
+create trigger update_articulos_updated_at BEFORE
+update on articulos for EACH row
+execute FUNCTION update_updated_at_column ();
 
-CREATE INDEX IF NOT EXISTS idx_alquileres_estado ON alquileres(estado);
-CREATE INDEX IF NOT EXISTS idx_alquileres_cliente ON alquileres(cliente_id);
-CREATE INDEX IF NOT EXISTS idx_alquileres_fecha_inicio ON alquileres(fecha_inicio);
-CREATE INDEX IF NOT EXISTS idx_alquileres_fecha_fin ON alquileres(fecha_fin);
+create table public.citas (
+  id uuid not null default gen_random_uuid (),
+  cliente_id uuid null,
+  fecha_hora timestamp with time zone not null,
+  descripcion text null,
+  estado character varying(50) null default 'pendiente'::character varying,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  tipo character varying(50) not null default 'alquiler'::character varying,
+  constraint citas_pkey primary key (id),
+  constraint citas_cliente_id_fkey foreign KEY (cliente_id) references clientes (id) on delete CASCADE
+) TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas(cliente_id);
-CREATE INDEX IF NOT EXISTS idx_ventas_estado ON ventas(estado);
-CREATE INDEX IF NOT EXISTS idx_ventas_created ON ventas(created_at);
+create index IF not exists idx_citas_estado on public.citas using btree (estado) TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_citas_fecha_hora ON citas(fecha_hora);
-CREATE INDEX IF NOT EXISTS idx_citas_estado ON citas(estado);
+create index IF not exists idx_citas_cliente_id on public.citas using btree (cliente_id) TABLESPACE pg_default;
 
--- ============================================================================
--- FUNCIÓN: Actualizar timestamp automáticamente
--- ============================================================================
+create index IF not exists idx_citas_fecha_hora on public.citas using btree (fecha_hora) TABLESPACE pg_default;
 
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+create trigger update_citas_updated_at BEFORE
+update on citas for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.clientes (
+  id uuid not null default gen_random_uuid (),
+  dni character varying(20) not null,
+  nombre character varying(255) not null,
+  telefono character varying(20) not null,
+  email character varying(255) null,
+  descripcion text null,
+  en_papelera boolean null default false,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint clientes_pkey primary key (id),
+  constraint clientes_dni_key unique (dni)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_clientes_dni on public.clientes using btree (dni) TABLESPACE pg_default;
+
+create index IF not exists idx_clientes_papelera on public.clientes using btree (en_papelera) TABLESPACE pg_default;
+
+create index IF not exists idx_clientes_nombre on public.clientes using btree (nombre) TABLESPACE pg_default;
+
+create trigger update_clientes_updated_at BEFORE
+update on clientes for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.configuracion (
+  id uuid not null default gen_random_uuid (),
+  nombre_empleado character varying(255) null default 'Empleado'::character varying,
+  tema_oscuro boolean null default false,
+  garantia_default numeric(10, 2) null default 50.0,
+  mora_diaria numeric(10, 2) null default 10.0,
+  dias_maximos_mora integer null default 7,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint configuracion_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create trigger update_configuracion_updated_at BEFORE
+update on configuracion for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.traje_articulos (
+  id uuid not null default gen_random_uuid (),
+  traje_id uuid null,
+  articulo_id uuid null,
+  constraint traje_articulos_pkey primary key (id),
+  constraint traje_articulos_traje_id_articulo_id_key unique (traje_id, articulo_id),
+  constraint traje_articulos_articulo_id_fkey foreign KEY (articulo_id) references articulos (id) on delete CASCADE,
+  constraint traje_articulos_traje_id_fkey foreign KEY (traje_id) references trajes (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.trajes (
+  id uuid not null default gen_random_uuid (),
+  nombre character varying(255) not null,
+  descripcion text null,
+  created_at timestamp with time zone null default now(),
+  constraint trajes_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create table public.venta_articulos (
+  id uuid not null default gen_random_uuid (),
+  venta_id uuid null,
+  articulo_id uuid null,
+  precio numeric(10, 2) not null,
+  created_at timestamp with time zone null default now(),
+  cantidad integer not null default 1,
+  constraint venta_articulos_pkey primary key (id),
+  constraint venta_articulos_articulo_id_fkey foreign KEY (articulo_id) references articulos (id) on delete RESTRICT,
+  constraint venta_articulos_venta_id_fkey foreign KEY (venta_id) references ventas (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create trigger trigger_actualizar_cantidades_venta
+after INSERT
+or DELETE
+or
+update on venta_articulos for EACH row
+execute FUNCTION actualizar_cantidades_articulo ();
+
+create trigger trigger_actualizar_inventario_venta
+after INSERT on venta_articulos for EACH row
+execute FUNCTION actualizar_inventario_venta ();
+
+create table public.ventas (
+  id uuid not null default gen_random_uuid (),
+  cliente_id uuid null,
+  total numeric(10, 2) not null,
+  metodo_pago character varying(50) not null,
+  estado character varying(50) null default 'completada'::character varying,
+  fecha_devolucion timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint ventas_pkey primary key (id),
+  constraint ventas_cliente_id_fkey foreign KEY (cliente_id) references clientes (id) on delete RESTRICT
+) TABLESPACE pg_default;
+
+create index IF not exists idx_ventas_cliente on public.ventas using btree (cliente_id) TABLESPACE pg_default;
+
+create index IF not exists idx_ventas_estado on public.ventas using btree (estado) TABLESPACE pg_default;
+
+create index IF not exists idx_ventas_created on public.ventas using btree (created_at) TABLESPACE pg_default;
+
+create trigger trigger_restaurar_inventario_devolucion
+after
+update on ventas for EACH row
+execute FUNCTION restaurar_inventario_devolucion ();
+
+create trigger update_ventas_updated_at BEFORE
+update on ventas for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+
+-- Funciones
+
+
+DECLARE
+  v_articulo_id UUID;
+  v_alquiler_id UUID;
 BEGIN
-  NEW.updated_at = NOW();
+  -- Determinar el articulo_id según la tabla que disparó el trigger
+  IF TG_TABLE_NAME = 'alquiler_articulos' THEN
+    v_articulo_id := COALESCE(NEW.articulo_id, OLD.articulo_id);
+    
+  ELSIF TG_TABLE_NAME = 'venta_articulos' THEN
+    v_articulo_id := COALESCE(NEW.articulo_id, OLD.articulo_id);
+    
+  ELSIF TG_TABLE_NAME = 'alquileres' THEN
+    -- Si el trigger viene de alquileres, actualizar todos los artículos del alquiler
+    v_alquiler_id := COALESCE(NEW.id, OLD.id);
+    
+    -- Actualizar cada artículo del alquiler
+    FOR v_articulo_id IN 
+      SELECT DISTINCT articulo_id 
+      FROM alquiler_articulos 
+      WHERE alquiler_id = v_alquiler_id
+    LOOP
+      -- Recalcular cantidades para este artículo
+      UPDATE articulos a
+      SET 
+        -- cantidad_alquilada = cuántos están activamente alquilados
+        cantidad_alquilada = COALESCE((
+          SELECT COUNT(*) 
+          FROM alquiler_articulos aa
+          JOIN alquileres al ON aa.alquiler_id = al.id
+          WHERE aa.articulo_id = a.id 
+            AND al.estado = 'activo'
+        ), 0),
+        
+        -- cantidad_disponible = total - alquilados - mantenimiento - vendidos - perdidos
+        cantidad_disponible = a.cantidad - COALESCE((
+          SELECT COUNT(*) 
+          FROM alquiler_articulos aa
+          JOIN alquileres al ON aa.alquiler_id = al.id
+          WHERE aa.articulo_id = a.id 
+            AND al.estado = 'activo'
+        ), 0) - a.cantidad_mantenimiento - a.cantidad_vendida - a.cantidad_perdida
+      WHERE a.id = v_articulo_id;
+    END LOOP;
+    
+    RETURN NEW;
+  END IF;
+  
+  -- Recalcular cantidades para el artículo específico
+  IF v_articulo_id IS NOT NULL THEN
+    UPDATE articulos a
+    SET 
+      cantidad_alquilada = COALESCE((
+        SELECT COUNT(*) 
+        FROM alquiler_articulos aa
+        JOIN alquileres al ON aa.alquiler_id = al.id
+        WHERE aa.articulo_id = a.id 
+          AND al.estado = 'activo'
+      ), 0),
+      cantidad_disponible = a.cantidad - COALESCE((
+        SELECT COUNT(*) 
+        FROM alquiler_articulos aa
+        JOIN alquileres al ON aa.alquiler_id = al.id
+        WHERE aa.articulo_id = a.id 
+          AND al.estado = 'activo'
+      ), 0) - a.cantidad_mantenimiento - a.cantidad_vendida - a.cantidad_perdida
+    WHERE a.id = v_articulo_id;
+  END IF;
+  
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
 
--- ============================================================================
--- TRIGGERS: Actualizar updated_at en cada UPDATE
--- ============================================================================
 
-DROP TRIGGER IF EXISTS update_clientes_updated_at ON clientes;
-CREATE TRIGGER update_clientes_updated_at 
-  BEFORE UPDATE ON clientes
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
+BEGIN
+    -- Verificar que hay suficiente cantidad disponible
+    IF (SELECT cantidad_disponible FROM articulos WHERE id = NEW.articulo_id) < NEW.cantidad THEN
+        RAISE EXCEPTION 'No hay suficiente inventario disponible para el artículo';
+    END IF;
+    
+    -- Actualizar cantidades en articulos
+    UPDATE articulos
+    SET 
+        cantidad_disponible = cantidad_disponible - NEW.cantidad,
+        cantidad_vendida = cantidad_vendida + NEW.cantidad,
+        updated_at = NOW()
+    WHERE id = NEW.articulo_id;
+    
+    RETURN NEW;
+END;
 
-DROP TRIGGER IF EXISTS update_articulos_updated_at ON articulos;
-CREATE TRIGGER update_articulos_updated_at 
-  BEFORE UPDATE ON articulos
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_alquileres_updated_at ON alquileres;
-CREATE TRIGGER update_alquileres_updated_at 
-  BEFORE UPDATE ON alquileres
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
+declare
+    v_settings app_settings;
+    v_rental record;
+    v_days integer;
+    v_extra numeric(10,2);
+begin
+    select * into v_settings from app_settings where id = 1;
+    for v_rental in
+        select * from rentals
+        where estado = 'ACTIVO'
+          and fecha_fin < current_date
+    loop
+        v_days := (current_date - v_rental.fecha_fin);
+        v_extra := v_days * v_settings.mora_diaria;
+        update rentals
+        set mora_acumulada = v_extra,
+            updated_at = now()
+        where id = v_rental.id;
 
-DROP TRIGGER IF EXISTS update_ventas_updated_at ON ventas;
-CREATE TRIGGER update_ventas_updated_at 
-  BEFORE UPDATE ON ventas
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
+        if v_days >= v_settings.dias_max_mora then
+            update rentals set estado = 'INCUMPLIDO' where id = v_rental.id;
+        end if;
+    end loop;
+end;
 
-DROP TRIGGER IF EXISTS update_citas_updated_at ON citas;
-CREATE TRIGGER update_citas_updated_at 
-  BEFORE UPDATE ON citas
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_configuracion_updated_at ON configuracion;
-CREATE TRIGGER update_configuracion_updated_at 
-  BEFORE UPDATE ON configuracion
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
+declare
+    v_article uuid;
+    v_hours integer;
+    v_reason maintenance_reason;
+begin
+    select article_id into v_article from rental_items where id = p_item;
+    if not found then
+        raise exception 'Artículo no encontrado en alquiler';
+    end if;
 
--- ============================================================================
--- FUNCIÓN: Actualizar estado de artículos en mantenimiento
--- Esta función puede ejecutarse periódicamente para liberar artículos
--- ============================================================================
+    update rental_items
+    set estado = p_estado,
+        garantia_retenida = p_reten_g,
+        comentario = p_comentario
+    where id = p_item;
 
-CREATE OR REPLACE FUNCTION liberar_articulos_mantenimiento()
-RETURNS void AS $$
+    if p_estado = 'COMPLETO' then
+        select mantenimiento_horas_completo into v_hours from app_settings where id = 1;
+        v_reason := 'DEVOLUCION_COMPLETA';
+        perform fn_set_article_state(v_article, 'MANTENIMIENTO', v_hours, v_reason, p_comentario);
+    elsif p_estado = 'DANADO' then
+        select mantenimiento_horas_danado into v_hours from app_settings where id = 1;
+        v_reason := 'DEVOLUCION_DANADA';
+        perform fn_set_article_state(v_article, 'MANTENIMIENTO', v_hours, v_reason, p_comentario);
+    elsif p_estado = 'PERDIDO' then
+        perform fn_set_article_state(v_article, 'PERDIDO', null, 'DEVOLUCION_PERDIDA', p_comentario);
+    end if;
+
+    if coalesce(p_reten_g,0) > 0 then
+        insert into guarantee_actions(rental_item_id, tipo, monto, descripcion)
+        values (p_item, 'RETENCION', p_reten_g, p_comentario);
+    end if;
+end;
+
+
+begin
+    if p_tipo = 'ALQUILERES' or p_tipo = 'AMBOS' then
+        return query
+        select r.codigo,
+               c.dni,
+               c.nombres,
+               r.created_at,
+               r.monto_total + r.mora_acumulada + coalesce(sum(ga.monto),0) as monto,
+               jsonb_agg(jsonb_build_object('articulo', ri.descripcion_snapshot, 'estado', ri.estado)) as detalle,
+               'ALQUILER' as origen
+        from rentals r
+        join clients c on c.dni = r.cliente_dni
+        left join rental_items ri on ri.rental_id = r.id
+        left join guarantee_actions ga on ga.rental_item_id = ri.id
+        where r.created_at::date between p_inicio and p_fin
+        group by r.id, c.dni;
+    end if;
+
+    if p_tipo = 'VENTAS' or p_tipo = 'AMBOS' then
+        return query
+        select s.codigo,
+               c.dni,
+               c.nombres,
+               s.fecha,
+               s.monto_total as monto,
+               jsonb_agg(jsonb_build_object('articulo', si.descripcion_snapshot, 'precio', si.precio)) as detalle,
+               'VENTA' as origen
+        from sales s
+        join clients c on c.dni = s.cliente_dni
+        left join sale_items si on si.sale_id = s.id
+        where s.fecha::date between p_inicio and p_fin
+        group by s.id, c.dni;
+    end if;
+end;
+
+
+
+begin
+    perform fn_set_article_state(p_article, 'MANTENIMIENTO', p_hours, coalesce(p_reason,'AJUSTE_MANUAL'), p_comment);
+end;
+
+
+
+begin
+    update articles
+    set estado = p_state,
+        mantenimiento_hasta = case when p_hours is null then null else now() + (p_hours || ' hours')::interval end,
+        updated_at = now()
+    where id = p_article;
+
+    insert into article_status_history(article_id, estado, motivo, comentario)
+    values (p_article, p_state, p_reason, p_comment);
+end;
+
+
+
 BEGIN
   UPDATE articulos
   SET estado = 'disponible', fecha_disponible = NULL
@@ -223,100 +440,56 @@ BEGIN
     AND fecha_disponible IS NOT NULL
     AND fecha_disponible <= NOW();
 END;
-$$ LANGUAGE plpgsql;
 
--- ============================================================================
--- POLÍTICAS DE SEGURIDAD (RLS)
--- Por ahora deshabilitadas para facilitar el desarrollo
--- Puedes habilitarlas más adelante para mayor seguridad
--- ============================================================================
 
--- Deshabilitar RLS en todas las tablas (para desarrollo)
-ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
-ALTER TABLE articulos DISABLE ROW LEVEL SECURITY;
-ALTER TABLE trajes DISABLE ROW LEVEL SECURITY;
-ALTER TABLE traje_articulos DISABLE ROW LEVEL SECURITY;
-ALTER TABLE alquileres DISABLE ROW LEVEL SECURITY;
-ALTER TABLE alquiler_articulos DISABLE ROW LEVEL SECURITY;
-ALTER TABLE ventas DISABLE ROW LEVEL SECURITY;
-ALTER TABLE venta_articulos DISABLE ROW LEVEL SECURITY;
-ALTER TABLE citas DISABLE ROW LEVEL SECURITY;
-ALTER TABLE configuracion DISABLE ROW LEVEL SECURITY;
 
--- ============================================================================
--- DATOS INICIALES: Configuración por defecto
--- ============================================================================
+declare
+    activos integer;
+begin
+    select count(*) into activos
+    from rentals
+    where cliente_dni = old.dni
+      and estado = 'ACTIVO';
+    if activos > 0 then
+        raise exception 'Cliente tiene alquileres activos';
+    end if;
+    insert into clients_trash(dni, nombres, telefono, email, descripcion, deleted_by)
+    values (old.dni, old.nombres, old.telefono, old.email, old.descripcion, current_setting('app.current_user_id', true)::uuid);
+    return old;
+end;
 
-INSERT INTO configuracion (nombre_empleado, tema_oscuro, garantia_default, mora_diaria, dias_maximos_mora)
-VALUES ('Empleado', FALSE, 50.0, 10.0, 7)
-ON CONFLICT DO NOTHING;
 
--- ============================================================================
--- DATOS DE EJEMPLO (OPCIONAL - Descomenta si quieres datos de prueba)
--- ============================================================================
 
--- Artículos de ejemplo
-/*
-INSERT INTO articulos (codigo, nombre, tipo, talla, color, precio_alquiler, precio_venta, estado)
-VALUES 
-  ('SAC001', 'Saco Negro Clásico', 'saco', 'M', 'Negro', 30.0, 200.0, 'disponible'),
-  ('SAC002', 'Saco Gris Oxford', 'saco', 'L', 'Gris', 35.0, 220.0, 'disponible'),
-  ('SAC003', 'Saco Azul Marino', 'saco', 'M', 'Azul', 32.0, 210.0, 'disponible'),
-  
-  ('PAN001', 'Pantalón Negro Formal', 'pantalon', '32', 'Negro', 20.0, 120.0, 'disponible'),
-  ('PAN002', 'Pantalón Gris Vestir', 'pantalon', '34', 'Gris', 22.0, 130.0, 'disponible'),
-  ('PAN003', 'Pantalón Azul Marino', 'pantalon', '32', 'Azul', 20.0, 125.0, 'disponible'),
-  
-  ('CAM001', 'Camisa Blanca Premium', 'camisa', 'M', 'Blanco', 15.0, 80.0, 'disponible'),
-  ('CAM002', 'Camisa Blanca Slim Fit', 'camisa', 'L', 'Blanco', 15.0, 85.0, 'disponible'),
-  ('CAM003', 'Camisa Celeste', 'camisa', 'M', 'Celeste', 15.0, 80.0, 'disponible'),
-  
-  ('ZAP001', 'Zapatos Negros Elegantes', 'zapato', '42', 'Negro', 25.0, 150.0, 'disponible'),
-  ('ZAP002', 'Zapatos Marrones Oxford', 'zapato', '43', 'Marrón', 25.0, 160.0, 'disponible'),
-  ('ZAP003', 'Zapatos Negros Derby', 'zapato', '41', 'Negro', 25.0, 155.0, 'disponible'),
-  
-  ('CHAL001', 'Chaleco Gris Perla', 'chaleco', 'M', 'Gris', 20.0, 100.0, 'disponible'),
-  ('CHAL002', 'Chaleco Negro Formal', 'chaleco', 'L', 'Negro', 20.0, 105.0, 'disponible'),
-  ('CHAL003', 'Chaleco Azul Marino', 'chaleco', 'M', 'Azul', 20.0, 100.0, 'disponible'),
-  
-  ('CORB001', 'Corbata Negra Lisa', 'extra', NULL, 'Negro', 5.0, 30.0, 'disponible'),
-  ('CORB002', 'Corbata Azul Rayas', 'extra', NULL, 'Azul', 5.0, 35.0, 'disponible'),
-  ('CORB003', 'Corbata Roja Elegante', 'extra', NULL, 'Rojo', 5.0, 35.0, 'disponible');
+BEGIN
+    -- Solo procesar si el estado cambió a 'devuelta'
+    IF NEW.estado = 'devuelta' AND OLD.estado != 'devuelta' THEN
+        -- Restaurar cantidades de todos los artículos de la venta
+        UPDATE articulos a
+        SET 
+            cantidad_disponible = cantidad_disponible + va.cantidad,
+            cantidad_vendida = cantidad_vendida - va.cantidad,
+            updated_at = NOW()
+        FROM venta_articulos va
+        WHERE va.venta_id = NEW.id
+        AND a.id = va.articulo_id;
+    END IF;
+    
+    RETURN NEW;
+END;
 
--- Trajes de ejemplo
-INSERT INTO trajes (nombre, descripcion)
-VALUES 
-  ('Traje Clásico Negro M', 'Traje completo negro talla M para eventos formales'),
-  ('Traje Ejecutivo Gris L', 'Traje gris talla L ideal para negocios'),
-  ('Traje Moderno Azul M', 'Traje azul marino talla M estilo contemporáneo');
 
--- Asociar artículos a trajes (ejemplo con el primer traje)
-INSERT INTO traje_articulos (traje_id, articulo_id)
-SELECT 
-  (SELECT id FROM trajes WHERE nombre = 'Traje Clásico Negro M'),
-  id
-FROM articulos
-WHERE codigo IN ('SAC001', 'PAN001', 'CAM001', 'ZAP001', 'CHAL001');
 
--- Cliente de ejemplo
-INSERT INTO clientes (dni, nombre, telefono, email, descripcion)
-VALUES 
-  ('12345678', 'Juan Pérez García', '987654321', 'juan.perez@email.com', 'Cliente frecuente'),
-  ('87654321', 'María López Rojas', '912345678', 'maria.lopez@email.com', 'Cliente VIP');
-*/
+begin
+  new.updated_at = now();
+  return new;
+end;
 
--- ============================================================================
--- FIN DEL SCRIPT
--- ============================================================================
 
--- VERIFICACIÓN: Ejecuta estas consultas para verificar que todo se creó correctamente
-/*
-SELECT 'Tablas creadas:' as info;
-SELECT table_name FROM information_schema.tables 
-WHERE table_schema = 'public' 
-ORDER BY table_name;
 
-SELECT 'Total de artículos:' as info, COUNT(*) as total FROM articulos;
-SELECT 'Total de clientes:' as info, COUNT(*) as total FROM clientes;
-SELECT 'Configuración:' as info, * FROM configuracion;
-*/
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+
+
+

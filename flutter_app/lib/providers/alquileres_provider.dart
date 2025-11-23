@@ -69,7 +69,7 @@ class AlquileresProvider extends ChangeNotifier {
 
   Future<bool> crearAlquiler({
     required String clienteId,
-    required List<String> articulosIds,
+    required List<Map<String, dynamic>> articulos,
     required List<String> trajesIds,
     required DateTime fechaInicio,
     required DateTime fechaFin,
@@ -79,11 +79,11 @@ class AlquileresProvider extends ChangeNotifier {
     try {
       debugPrint('=== CREAR ALQUILER ===');
       debugPrint('Cliente ID: $clienteId');
-      debugPrint('Artículos IDs: $articulosIds');
+      debugPrint('Artículos: $articulos');
 
       final body = {
         'cliente_id': clienteId,
-        'articulos': articulosIds.map((id) => {'id': id}).toList(),
+        'articulos': articulos,
         'fecha_inicio': fechaInicio.toIso8601String(),
         'fecha_fin': fechaFin.toIso8601String(),
         'monto_alquiler': montoAlquiler,

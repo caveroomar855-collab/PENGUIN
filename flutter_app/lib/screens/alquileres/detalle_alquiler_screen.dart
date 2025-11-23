@@ -40,70 +40,157 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
   Future<void> _mostrarDialogoDevolucion() async {
     if (_alquiler == null) return;
 
-    String? estadoSeleccionado = 'completo';
+    // Prepare per-article estado selection and cantidades
     bool retenerGarantia = false;
+    final Map<String, String> estadoPorArticulo = {};
+    final Map<String, int> cantidadPorArticulo = {};
+
+    // agrupar unidades por articulo_id (alquiler_articulos tiene filas por unidad)
+    for (final a in _alquiler!.articulos) {
+      final id = a.articuloId;
+      estadoPorArticulo[id] = 'completo';
+      cantidadPorArticulo[id] = (cantidadPorArticulo[id] ?? 0) + 1;
+    }
 
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Marcar Devolución'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('¿En qué estado se devolvieron los artículos?'),
-              const SizedBox(height: 12),
-              RadioListTile<String>(
-                title: const Text('Completo (sin daños)'),
-                value: 'completo',
-                groupValue: estadoSeleccionado,
-                onChanged: (val) =>
-                    setDialogState(() => estadoSeleccionado = val),
-              ),
-              RadioListTile<String>(
-                title: const Text('Con daños'),
-                value: 'danado',
-                groupValue: estadoSeleccionado,
-                onChanged: (val) =>
-                    setDialogState(() => estadoSeleccionado = val),
-              ),
-              RadioListTile<String>(
-                title: const Text('Perdido'),
-                value: 'perdido',
-                groupValue: estadoSeleccionado,
-                onChanged: (val) =>
-                    setDialogState(() => estadoSeleccionado = val),
-              ),
-              const Divider(),
-              CheckboxListTile(
-                title: const Text('Retener garantía'),
-                subtitle: Text('S/ ${_alquiler!.garantia.toStringAsFixed(2)}'),
-                value: retenerGarantia,
-                onChanged: (val) =>
-                    setDialogState(() => retenerGarantia = val ?? false),
-              ),
-              if (_alquiler!.isMoraVencida) ...[
-                const Divider(),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Mora de ${_alquiler!.diasMora} días',
-                        style: const TextStyle(color: Colors.red),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Seleccione el estado de cada artículo:'),
+                const SizedBox(height: 12),
+                // Mostrar por artículo único: estado + cantidad a devolver/marcar
+                ...cantidadPorArticulo.keys.map((artId) {
+                  final artData = _alquiler!.articulos
+                      .firstWhere((a) => a.articuloId == artId);
+                  final art = artData.articulo;
+                  if (art == null) return const SizedBox();
+
+                  final selected = estadoPorArticulo[artId] ?? 'completo';
+                  final maxQty = cantidadPorArticulo[artId] ?? 1;
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: StatefulBuilder(
+                        builder: (context, setInnerState) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${art.tipo} - ${art.talla} (${art.codigo})',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: DropdownButton<String>(
+                                    value: selected,
+                                    items: const [
+                                      DropdownMenuItem(
+                                          value: 'completo',
+                                          child: Text('Completo (sin daños)')),
+                                      DropdownMenuItem(
+                                          value: 'danado',
+                                          child: Text('Con daños')),
+                                      DropdownMenuItem(
+                                          value: 'perdido',
+                                          child: Text('Perdido')),
+                                    ],
+                                    onChanged: (val) => setDialogState(() =>
+                                        estadoPorArticulo[artId] =
+                                            val ?? 'completo'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // cantidad selector
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border:
+                                        Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove),
+                                        onPressed: () {
+                                          setInnerState(() {
+                                            final cur =
+                                                cantidadPorArticulo[artId] ?? 1;
+                                            if (cur > 1) {
+                                              cantidadPorArticulo[artId] =
+                                                  cur - 1;
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8.0),
+                                        child: Text(
+                                            '${cantidadPorArticulo[artId]}'),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.add),
+                                        onPressed: () {
+                                          setInnerState(() {
+                                            final cur =
+                                                cantidadPorArticulo[artId] ?? 1;
+                                            if (cur < maxQty) {
+                                              cantidadPorArticulo[artId] =
+                                                  cur + 1;
+                                            }
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  );
+                }),
+                const Divider(),
+                CheckboxListTile(
+                  title: const Text('Retener garantía'),
+                  subtitle:
+                      Text('S/ ${_alquiler!.garantia.toStringAsFixed(2)}'),
+                  value: retenerGarantia,
+                  onChanged: (val) =>
+                      setDialogState(() => retenerGarantia = val ?? false),
                 ),
+                if (_alquiler!.isMoraVencida) ...[
+                  const Divider(),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Mora de ${_alquiler!.diasMora} días',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -123,16 +210,18 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
 
     if (result == true && mounted) {
       final provider = Provider.of<AlquileresProvider>(context, listen: false);
-      final articulos = _alquiler!.articulos
-          .map((a) => {
-                'articulo_id': a.articuloId,
-                'estado': estadoSeleccionado,
+
+      final articulosPayload = cantidadPorArticulo.entries
+          .map((e) => {
+                'articulo_id': e.key,
+                'estado_devolucion': estadoPorArticulo[e.key] ?? 'completo',
+                'cantidad': e.value,
               })
           .toList();
 
       final success = await provider.marcarDevolucion(
         widget.alquilerId,
-        articulos,
+        articulosPayload.cast<Map<String, dynamic>>(),
         retenerGarantia,
         retenerGarantia ? 'Garantía retenida' : null,
       );
@@ -331,7 +420,7 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
           ],
         ),
       ),

@@ -50,7 +50,42 @@ router.get('/trajes', async (req, res) => {
       .order('nombre', { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+    // Calcular totales por traje (suma de las cantidades de sus artículos)
+    const augmented = (data || []).map((traje) => {
+      const items = (traje.traje_articulos || []).map((ta) => ta.articulos).filter(Boolean);
+      const disponibles = items.reduce((s, a) => s + (a.cantidad_disponible || 0), 0);
+      const alquilados = items.reduce((s, a) => s + (a.cantidad_alquilada || 0), 0);
+      const mantenimiento = items.reduce((s, a) => s + (a.cantidad_mantenimiento || 0), 0);
+      const total = items.reduce((s, a) => s + (a.cantidad || 0), 0);
+      return { ...traje, totales: { total, disponibles, alquilados, mantenimiento } };
+    });
+
+    res.json(augmented);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resumen agregado de estados (totales por unidades)
+router.get('/estados/summary', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('articulos')
+      .select('cantidad, cantidad_disponible, cantidad_alquilada, cantidad_mantenimiento, cantidad_vendida, cantidad_perdida');
+
+    if (error) throw error;
+
+    const summary = (data || []).reduce((acc, a) => {
+      acc.total += (a.cantidad || 0);
+      acc.disponibles += (a.cantidad_disponible || 0);
+      acc.alquilados += (a.cantidad_alquilada || 0);
+      acc.mantenimiento += (a.cantidad_mantenimiento || 0);
+      acc.vendidos += (a.cantidad_vendida || 0);
+      acc.perdidos += (a.cantidad_perdida || 0);
+      return acc;
+    }, { total: 0, disponibles: 0, alquilados: 0, mantenimiento: 0, vendidos: 0, perdidos: 0 });
+
+    res.json(summary);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

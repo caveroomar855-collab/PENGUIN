@@ -127,9 +127,18 @@ class _InventarioScreenState extends State<InventarioScreen>
                   if (!matchSearch) return false;
                 }
 
-                // Filtro por estado
+                // Filtro por estado usando cantidades (un artículo puede aparecer en varios filtros)
                 if (_filtroEstado != 'todos') {
-                  return a.estado == _filtroEstado;
+                  switch (_filtroEstado) {
+                    case 'disponible':
+                      return a.cantidadDisponible > 0;
+                    case 'alquilado':
+                      return a.cantidadAlquilada > 0;
+                    case 'mantenimiento':
+                      return a.cantidadMantenimiento > 0;
+                    default:
+                      return true;
+                  }
                 }
 
                 return true;
@@ -194,7 +203,8 @@ class _InventarioScreenState extends State<InventarioScreen>
 
   Widget _buildArticuloCard(Articulo articulo) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    final enMantenimiento = articulo.estado == 'mantenimiento';
+    // Determine if there are units in each status
+    final enMantenimiento = articulo.cantidadMantenimiento > 0;
     final disponibleEn = articulo.fechaDisponible;
 
     return Card(
@@ -403,20 +413,21 @@ class _InventarioScreenState extends State<InventarioScreen>
   }
 
   Widget _buildTrajeCard(Traje traje) {
-    final disponibles =
-        traje.articulos.where((a) => a.estado == 'disponible').length;
-    final alquilados =
-        traje.articulos.where((a) => a.estado == 'alquilado').length;
-    final mantenimiento =
-        traje.articulos.where((a) => a.estado == 'mantenimiento').length;
-    final todosDisponibles = disponibles == traje.articulos.length;
+    // Sum unit counts across the traje's artículos
+    // Disponibles for a traje = maximum number of complete sets we can assemble
+    // i.e. the minimum available units among the piezas (assuming 1 unit of each per traje)
+    final disponibles = traje.articulos.isEmpty
+        ? 0
+        : traje.articulos
+            .map((a) => a.cantidadDisponible)
+            .reduce((v, e) => v < e ? v : e);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: todosDisponibles ? Colors.green : Colors.orange,
+          backgroundColor: disponibles > 0 ? Colors.green : Colors.orange,
           child: const Icon(Icons.checkroom, color: Colors.white),
         ),
         title: Text(traje.nombre,
@@ -467,9 +478,6 @@ class _InventarioScreenState extends State<InventarioScreen>
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildEstadoBadge('Disponibles', disponibles, Colors.green),
-                _buildEstadoBadge('Alquilados', alquilados, Colors.blue),
-                _buildEstadoBadge(
-                    'Mantenimiento', mantenimiento, Colors.orange),
               ],
             ),
           ),
@@ -483,12 +491,13 @@ class _InventarioScreenState extends State<InventarioScreen>
                 color: _getEstadoColor(articulo.estado),
               ),
               title: Text(articulo.nombre),
-              subtitle: Text('${articulo.codigo} - ${articulo.estado}'),
+              subtitle: Text(
+                  '${articulo.codigo} - Stock: ${articulo.cantidadDisponible}/${articulo.cantidad}'),
               trailing: Icon(Icons.circle,
                   size: 12, color: _getEstadoColor(articulo.estado)),
               onTap: () => _mostrarDetalleArticulo(articulo),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -520,17 +529,19 @@ class _InventarioScreenState extends State<InventarioScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final total = provider.articulos.length;
-        final disponibles =
-            provider.articulos.where((a) => a.estado == 'disponible').length;
-        final alquilados =
-            provider.articulos.where((a) => a.estado == 'alquilado').length;
-        final mantenimiento =
-            provider.articulos.where((a) => a.estado == 'mantenimiento').length;
-        final vendidos =
-            provider.articulos.where((a) => a.estado == 'vendido').length;
-        final perdidos =
-            provider.articulos.where((a) => a.estado == 'perdido').length;
+        // Use unit counts (cantidad_*) instead of row counts by estado
+        final total =
+            provider.articulos.fold<int>(0, (sum, a) => sum + (a.cantidad));
+        final disponibles = provider.articulos
+            .fold<int>(0, (sum, a) => sum + (a.cantidadDisponible));
+        final alquilados = provider.articulos
+            .fold<int>(0, (sum, a) => sum + (a.cantidadAlquilada));
+        final mantenimiento = provider.articulos
+            .fold<int>(0, (sum, a) => sum + (a.cantidadMantenimiento));
+        final vendidos = provider.articulos
+            .fold<int>(0, (sum, a) => sum + (a.cantidadVendida));
+        final perdidos = provider.articulos
+            .fold<int>(0, (sum, a) => sum + (a.cantidadPerdida));
 
         return RefreshIndicator(
           onRefresh: _cargarDatos,
@@ -630,6 +641,7 @@ class _InventarioScreenState extends State<InventarioScreen>
     final currencyFormat =
         NumberFormat.currency(symbol: 'S/ ', decimalDigits: 2);
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    final enMantenimiento = articulo.cantidadMantenimiento > 0;
 
     showDialog(
       context: context,
@@ -652,13 +664,13 @@ class _InventarioScreenState extends State<InventarioScreen>
               _buildDetalleRow(
                   'Precio Venta:', currencyFormat.format(articulo.precioVenta)),
               const Divider(height: 24),
+              // Mostrar desglose por cantidades
+              _buildDetalleRow('DISPONIBLE:',
+                  '${articulo.cantidadDisponible} / ${articulo.cantidad}'),
+              _buildDetalleRow('ALQUILADO:', '${articulo.cantidadAlquilada}'),
               _buildDetalleRow(
-                'Estado:',
-                articulo.estado.toUpperCase(),
-                color: _getEstadoColor(articulo.estado),
-              ),
-              if (articulo.estado == 'mantenimiento' &&
-                  articulo.fechaDisponible != null)
+                  'MANTENIMIENTO:', '${articulo.cantidadMantenimiento}'),
+              if (enMantenimiento && articulo.fechaDisponible != null)
                 _buildDetalleRow(
                   'Disponible el:',
                   dateFormat.format(articulo.fechaDisponible!),
@@ -713,6 +725,7 @@ class _InventarioScreenState extends State<InventarioScreen>
     int? horas = 24;
     bool indefinido = false;
     int cantidad = 1;
+    final outerContext = context;
 
     showDialog(
       context: context,
@@ -757,7 +770,8 @@ class _InventarioScreenState extends State<InventarioScreen>
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final provider = Provider.of<InventarioProvider>(context,
+                      final provider = Provider.of<InventarioProvider>(
+                          outerContext,
                           listen: false);
                       final resultado = await provider.gestionarMantenimiento(
                         articulo.id!,
@@ -765,18 +779,17 @@ class _InventarioScreenState extends State<InventarioScreen>
                         cantidad,
                       );
 
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(resultado
-                                ? '$cantidad unidad(es) disponible(s) nuevamente'
-                                : 'Error al actualizar'),
-                            backgroundColor:
-                                resultado ? Colors.green : Colors.red,
-                          ),
-                        );
-                      }
+                      if (!mounted) return;
+                      Navigator.pop(outerContext);
+                      ScaffoldMessenger.of(outerContext).showSnackBar(
+                        SnackBar(
+                          content: Text(resultado
+                              ? '$cantidad unidad(es) disponible(s) nuevamente'
+                              : 'Error al actualizar'),
+                          backgroundColor:
+                              resultado ? Colors.green : Colors.red,
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.check_circle),
                     label: const Text('Quitar de Mantenimiento'),
@@ -867,7 +880,8 @@ class _InventarioScreenState extends State<InventarioScreen>
                         return;
                       }
 
-                      final provider = Provider.of<InventarioProvider>(context,
+                      final provider = Provider.of<InventarioProvider>(
+                          outerContext,
                           listen: false);
                       final resultado = await provider.gestionarMantenimiento(
                         articulo.id!,
@@ -877,18 +891,17 @@ class _InventarioScreenState extends State<InventarioScreen>
                         indefinido: indefinido,
                       );
 
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(resultado
-                                ? '$cantidad unidad(es) en mantenimiento'
-                                : 'Error al actualizar'),
-                            backgroundColor:
-                                resultado ? Colors.orange : Colors.red,
-                          ),
-                        );
-                      }
+                      if (!mounted) return;
+                      Navigator.pop(outerContext);
+                      ScaffoldMessenger.of(outerContext).showSnackBar(
+                        SnackBar(
+                          content: Text(resultado
+                              ? '$cantidad unidad(es) en mantenimiento'
+                              : 'Error al actualizar'),
+                          backgroundColor:
+                              resultado ? Colors.orange : Colors.red,
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.build),
                     label: const Text('Poner en Mantenimiento'),
@@ -921,6 +934,7 @@ class _InventarioScreenState extends State<InventarioScreen>
     final cantidadController = TextEditingController(text: '1');
     final precioAlquilerController = TextEditingController();
     final precioVentaController = TextEditingController();
+    final outerContext = context;
 
     showDialog(
       context: context,
@@ -1061,22 +1075,21 @@ class _InventarioScreenState extends State<InventarioScreen>
                   estado: 'disponible',
                 );
 
-                final provider =
-                    Provider.of<InventarioProvider>(context, listen: false);
+                final provider = Provider.of<InventarioProvider>(outerContext,
+                    listen: false);
                 final resultado = await provider.crearArticulo(nuevoArticulo);
 
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(resultado['success']
-                          ? 'Artículo creado exitosamente'
-                          : 'Error: ${resultado['error']}'),
-                      backgroundColor:
-                          resultado['success'] ? Colors.green : Colors.red,
-                    ),
-                  );
-                }
+                if (!mounted) return;
+                Navigator.pop(outerContext);
+                ScaffoldMessenger.of(outerContext).showSnackBar(
+                  SnackBar(
+                    content: Text(resultado['success']
+                        ? 'Artículo creado exitosamente'
+                        : 'Error: ${resultado['error']}'),
+                    backgroundColor:
+                        resultado['success'] ? Colors.green : Colors.red,
+                  ),
+                );
               },
               child: const Text('Guardar'),
             ),
@@ -1230,155 +1243,45 @@ class _InventarioScreenState extends State<InventarioScreen>
       final provider = Provider.of<InventarioProvider>(context, listen: false);
       final resultado = await provider.eliminarArticulo(articulo.id!);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(resultado
-                ? 'Artículo eliminado exitosamente'
-                : 'Error al eliminar artículo'),
-            backgroundColor: resultado ? Colors.green : Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(resultado
+              ? 'Artículo eliminado exitosamente'
+              : 'Error al eliminar artículo'),
+          backgroundColor: resultado ? Colors.green : Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _mostrarDialogoCrearTraje() async {
-    final nombreController = TextEditingController();
-    final descripcionController = TextEditingController();
-    List<Articulo> articulosSeleccionados = [];
-
-    final resultado = await showDialog<bool>(
+    // Use a dedicated dialog widget that owns its controllers to avoid lifecycle
+    // issues when cancelling the dialog.
+    final result = await showDialog<Map<String, dynamic>?>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          final provider =
-              Provider.of<InventarioProvider>(context, listen: false);
-          final articulosDisponibles = provider.articulos
-              .where((a) => a.cantidadDisponible > 0)
-              .toList();
-
-          return AlertDialog(
-            title: const Text('Crear Nuevo Traje'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nombreController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre del Traje',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.checkroom),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descripcionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Descripción (opcional)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.description),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final seleccionados = await showDialog<List<Articulo>>(
-                        context: context,
-                        builder: (context) => _DialogoSeleccionarArticulosTraje(
-                          articulosDisponibles: articulosDisponibles,
-                          articulosSeleccionados: articulosSeleccionados,
-                        ),
-                      );
-                      if (seleccionados != null) {
-                        setState(() {
-                          articulosSeleccionados = seleccionados;
-                        });
-                      }
-                    },
-                    icon: const Icon(Icons.add_circle),
-                    label: Text(articulosSeleccionados.isEmpty
-                        ? 'Seleccionar Artículos'
-                        : '${articulosSeleccionados.length} artículos'),
-                  ),
-                  if (articulosSeleccionados.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: articulosSeleccionados.length,
-                        itemBuilder: (context, index) {
-                          final art = articulosSeleccionados[index];
-                          return ListTile(
-                            dense: true,
-                            leading: Icon(_getIconoTipo(art.tipo), size: 20),
-                            title: Text(art.nombre,
-                                style: const TextStyle(fontSize: 14)),
-                            subtitle: Text('${art.tipo} - ${art.talla}',
-                                style: const TextStyle(fontSize: 12)),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: articulosSeleccionados.isEmpty
-                    ? null
-                    : () {
-                        if (nombreController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Ingrese nombre del traje')),
-                          );
-                          return;
-                        }
-                        Navigator.pop(context, true);
-                      },
-                child: const Text('Crear Traje'),
-              ),
-            ],
-          );
-        },
-      ),
+      builder: (context) => const _CrearTrajeDialog(),
     );
 
-    if (resultado == true) {
+    if (result != null &&
+        result['articulos'] != null &&
+        (result['articulos'] as List).isNotEmpty) {
       final provider = Provider.of<InventarioProvider>(context, listen: false);
       final success = await provider.crearTraje(
-        nombreController.text,
-        descripcionController.text,
-        articulosSeleccionados.map((a) => a.id!).toList(),
+        result['nombre'] as String,
+        result['descripcion'] as String,
+        (result['articulos'] as List<Articulo>).map((a) => a.id!).toList(),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                success ? 'Traje creado exitosamente' : 'Error al crear traje'),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              success ? 'Traje creado exitosamente' : 'Error al crear traje'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
     }
-
-    nombreController.dispose();
-    descripcionController.dispose();
   }
 
   Future<void> _mostrarDialogoEditarTraje(Traje traje) async {
@@ -1433,6 +1336,154 @@ class _InventarioScreenState extends State<InventarioScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+}
+
+// Dialog widget that owns its TextEditingControllers and selection state
+IconData _iconoTipoGlobal(String tipo) {
+  switch (tipo.toLowerCase()) {
+    case 'saco':
+      return Icons.checkroom;
+    case 'chaleco':
+      return Icons.vpn_key;
+    case 'pantalon':
+      return Icons.boy;
+    case 'camisa':
+      return Icons.dry_cleaning;
+    case 'zapato':
+      return Icons.directions_walk;
+    case 'extra':
+      return Icons.shopping_bag;
+    default:
+      return Icons.inventory_2;
+  }
+}
+
+class _CrearTrajeDialog extends StatefulWidget {
+  const _CrearTrajeDialog({Key? key}) : super(key: key);
+
+  @override
+  State<_CrearTrajeDialog> createState() => __CrearTrajeDialogState();
+}
+
+class __CrearTrajeDialogState extends State<_CrearTrajeDialog> {
+  final nombreController = TextEditingController();
+  final descripcionController = TextEditingController();
+  List<Articulo> articulosSeleccionados = [];
+
+  @override
+  void dispose() {
+    nombreController.dispose();
+    descripcionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<InventarioProvider>(context, listen: false);
+    final articulosDisponibles =
+        provider.articulos.where((a) => a.cantidadDisponible > 0).toList();
+
+    return AlertDialog(
+      title: const Text('Crear Nuevo Traje'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nombreController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre del Traje',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.checkroom),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descripcionController,
+              decoration: const InputDecoration(
+                labelText: 'Descripción (opcional)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.description),
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final seleccionados = await showDialog<List<Articulo>>(
+                  context: context,
+                  builder: (context) => _DialogoSeleccionarArticulosTraje(
+                    articulosDisponibles: articulosDisponibles,
+                    articulosSeleccionados: articulosSeleccionados,
+                  ),
+                );
+                if (seleccionados != null) {
+                  setState(() {
+                    articulosSeleccionados = seleccionados;
+                  });
+                }
+              },
+              icon: const Icon(Icons.add_circle),
+              label: Text(articulosSeleccionados.isEmpty
+                  ? 'Seleccionar Artículos'
+                  : '${articulosSeleccionados.length} artículos'),
+            ),
+            if (articulosSeleccionados.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 200),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: articulosSeleccionados.length,
+                  itemBuilder: (context, index) {
+                    final art = articulosSeleccionados[index];
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(_iconoTipoGlobal(art.tipo), size: 20),
+                      title: Text(art.nombre,
+                          style: const TextStyle(fontSize: 14)),
+                      subtitle: Text('${art.tipo} - ${art.talla}',
+                          style: const TextStyle(fontSize: 12)),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: articulosSeleccionados.isEmpty
+              ? null
+              : () {
+                  if (nombreController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ingrese nombre del traje')),
+                    );
+                    return;
+                  }
+
+                  Navigator.pop(context, {
+                    'nombre': nombreController.text,
+                    'descripcion': descripcionController.text,
+                    'articulos': articulosSeleccionados,
+                  });
+                },
+          child: const Text('Crear Traje'),
+        ),
+      ],
+    );
   }
 }
 

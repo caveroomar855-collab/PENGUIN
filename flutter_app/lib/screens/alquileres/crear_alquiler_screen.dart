@@ -26,7 +26,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
   Cliente? _clienteExistente;
   DateTime _fechaInicio = DateTime.now();
   DateTime _fechaFin = DateTime.now().add(const Duration(days: 3));
-  final List<Articulo> _articulosSeleccionados = [];
+  final List<Map<String, dynamic>> _articulosSeleccionados = [];
 
   bool _isLoading = false;
 
@@ -48,12 +48,17 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
       inventarioProvider.cargarArticulos(),
       inventarioProvider.cargarTrajes(),
     ]);
+    if (!mounted) return;
   }
 
   double get _totalAlquiler {
     return _articulosSeleccionados.fold<double>(
       0,
-      (sum, art) => sum + art.precioAlquiler,
+      (sum, entry) {
+        final art = entry['articulo'] as Articulo;
+        final qty = entry['cantidad'] as int;
+        return sum + art.precioAlquiler * qty;
+      },
     );
   }
 
@@ -98,7 +103,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
       return;
     }
 
-    final seleccionados = await showDialog<List<Articulo>>(
+    final seleccionados = await showDialog<List<Map<String, dynamic>>>(
       context: context,
       builder: (context) => _DialogoSeleccionArticulos(
         articulos: articulosDisponibles,
@@ -106,6 +111,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
         esAlquiler: true,
       ),
     );
+    if (!mounted) return;
 
     if (seleccionados != null) {
       setState(() {
@@ -133,6 +139,8 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
       ),
     );
 
+    if (!mounted) return;
+
     if (traje != null && traje.articulos.isNotEmpty) {
       final articulosDisponibles =
           traje.articulos.where((a) => a.cantidadDisponible > 0).toList();
@@ -145,7 +153,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
         return;
       }
 
-      final seleccionados = await showDialog<List<Articulo>>(
+      final seleccionados = await showDialog<List<Map<String, dynamic>>>(
         context: context,
         builder: (context) => _DialogoSeleccionArticulos(
           articulos: articulosDisponibles,
@@ -154,6 +162,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
           esAlquiler: true,
         ),
       );
+      if (!mounted) return;
 
       if (seleccionados != null) {
         setState(() {
@@ -191,6 +200,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
       );
 
       final resultado = await clientesProvider.crearCliente(nuevoCliente);
+      if (!mounted) return;
       if (!resultado['success']) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -203,15 +213,23 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
     }
 
     final provider = Provider.of<AlquileresProvider>(context, listen: false);
+    // Build articulos payload with id and cantidad
+    final articulosPayload = _articulosSeleccionados.map((entry) {
+      final art = entry['articulo'] as Articulo;
+      final qty = entry['cantidad'] as int;
+      return {'id': art.id, 'cantidad': qty};
+    }).toList();
+
     final success = await provider.crearAlquiler(
       clienteId: clienteId,
-      articulosIds: _articulosSeleccionados.map((a) => a.id!).toList(),
+      articulos: articulosPayload,
       trajesIds: [],
       fechaInicio: _fechaInicio,
       fechaFin: _fechaFin,
       montoAlquiler: _totalAlquiler,
       garantia: double.parse(_garantiaController.text),
     );
+    if (!mounted) return;
 
     setState(() => _isLoading = false);
 
@@ -503,7 +521,9 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _articulosSeleccionados.length,
                 itemBuilder: (context, index) {
-                  final articulo = _articulosSeleccionados[index];
+                  final entry = _articulosSeleccionados[index];
+                  final articulo = entry['articulo'] as Articulo;
+                  final cantidad = entry['cantidad'] as int? ?? 1;
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
@@ -524,6 +544,10 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                                 fontSize: 16,
                                 color: Colors.green),
                           ),
+                          const SizedBox(width: 8),
+                          Text('x$cantidad',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
                           IconButton(
                             icon: const Icon(Icons.remove_circle,
                                 color: Colors.red),
@@ -657,7 +681,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
 // Diálogo para seleccionar artículos
 class _DialogoSeleccionArticulos extends StatefulWidget {
   final List<Articulo> articulos;
-  final List<Articulo> articulosYaSeleccionados;
+  final List<dynamic> articulosYaSeleccionados;
   final String? tituloPersonalizado;
   final bool esAlquiler;
 
@@ -675,14 +699,24 @@ class _DialogoSeleccionArticulos extends StatefulWidget {
 
 class __DialogoSeleccionArticulosState
     extends State<_DialogoSeleccionArticulos> {
-  late List<Articulo> _seleccionados;
+  final Map<String, int> _selectedQuantities = {};
   final _searchController = TextEditingController();
   String _filtro = '';
 
   @override
   void initState() {
     super.initState();
-    _seleccionados = List.from(widget.articulosYaSeleccionados);
+    // Inicializar cantidades seleccionadas desde articulosYaSeleccionados
+    for (final entry in widget.articulosYaSeleccionados) {
+      if (entry is Map) {
+        final art = entry['articulo'] as Articulo?;
+        final id = art?.id ?? entry['id'];
+        final qty = entry['cantidad'] as int? ?? 1;
+        if (id != null) _selectedQuantities[id] = qty;
+      } else if (entry is Articulo) {
+        if (entry.id != null) _selectedQuantities[entry.id!] = 1;
+      }
+    }
   }
 
   @override
@@ -722,35 +756,87 @@ class __DialogoSeleccionArticulosState
                 itemCount: articulosFiltrados.length,
                 itemBuilder: (context, index) {
                   final articulo = articulosFiltrados[index];
+                  final disponible = articulo.cantidadDisponible;
                   final seleccionado =
-                      _seleccionados.any((a) => a.id == articulo.id);
+                      _selectedQuantities.containsKey(articulo.id);
                   final precio = widget.esAlquiler
                       ? articulo.precioAlquiler
                       : articulo.precioVenta;
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
-                    child: CheckboxListTile(
-                      value: seleccionado,
-                      onChanged: (value) {
-                        setState(() {
-                          if (value == true) {
-                            _seleccionados.add(articulo);
-                          } else {
-                            _seleccionados
-                                .removeWhere((a) => a.id == articulo.id);
-                          }
-                        });
-                      },
-                      title: Text(articulo.nombre,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(
-                        '${articulo.tipo.toUpperCase()} - ${articulo.codigo}\n${currencyFormat.format(precio)}',
-                      ),
-                      secondary: CircleAvatar(
-                        child: Icon(
-                          seleccionado ? Icons.check : Icons.inventory_2,
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(articulo.nombre,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Text(
+                                    '${articulo.tipo.toUpperCase()} - ${articulo.codigo}\n${currencyFormat.format(precio)}'),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: Icon(seleccionado
+                                    ? Icons.check_box
+                                    : Icons.check_box_outline_blank),
+                                onPressed: () {
+                                  setState(() {
+                                    if (seleccionado) {
+                                      _selectedQuantities.remove(articulo.id);
+                                    } else {
+                                      _selectedQuantities[articulo.id!] = 1;
+                                    }
+                                  });
+                                },
+                              ),
+                              if (seleccionado) ...[
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                          Icons.remove_circle_outline),
+                                      onPressed: () {
+                                        setState(() {
+                                          final cur = _selectedQuantities[
+                                              articulo.id!]!;
+                                          if (cur > 1)
+                                            _selectedQuantities[articulo.id!] =
+                                                cur - 1;
+                                        });
+                                      },
+                                    ),
+                                    Text(
+                                        '${_selectedQuantities[articulo.id!]}'),
+                                    IconButton(
+                                      icon:
+                                          const Icon(Icons.add_circle_outline),
+                                      onPressed: () {
+                                        setState(() {
+                                          final cur = _selectedQuantities[
+                                              articulo.id!]!;
+                                          final maxQty = disponible;
+                                          if (cur < maxQty)
+                                            _selectedQuantities[articulo.id!] =
+                                                cur + 1;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                )
+                              ]
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -766,9 +852,17 @@ class __DialogoSeleccionArticulosState
           child: const Text('Cancelar'),
         ),
         ElevatedButton.icon(
-          onPressed: () => Navigator.pop(context, _seleccionados),
+          onPressed: () {
+            // Construir resultado: lista de { 'articulo': Articulo, 'cantidad': int }
+            final result = <Map<String, dynamic>>[];
+            for (final entry in _selectedQuantities.entries) {
+              final art = widget.articulos.firstWhere((a) => a.id == entry.key);
+              result.add({'articulo': art, 'cantidad': entry.value});
+            }
+            Navigator.pop(context, result);
+          },
           icon: const Icon(Icons.check),
-          label: Text('Aceptar (${_seleccionados.length})'),
+          label: Text('Aceptar (${_selectedQuantities.length})'),
         ),
       ],
     );

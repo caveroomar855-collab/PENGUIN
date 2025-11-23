@@ -114,13 +114,43 @@ router.post('/', async (req, res) => {
     console.log('Alquiler creado:', alquiler.id);
 
     // Insertar artículos del alquiler
-    const articulosData = articulos.map(art => ({
-      alquiler_id: alquiler.id,
-      articulo_id: art.id,
-      estado: 'alquilado'
-    }));
+    const articulosData = [];
 
-    console.log('Insertando artículos:', articulosData);
+    // Validar disponibilidad por artículo antes de insertar
+    for (const art of articulos) {
+      const articuloId = art.id || art.articulo_id || art.articuloId;
+      if (!articuloId) {
+        throw new Error('Artículo sin id en payload');
+      }
+      const qty = Math.max(1, parseInt(art.cantidad || art.qty || 1, 10));
+
+      // Consultar disponibilidad actual
+      const { data: articuloDB, error: artError } = await supabase
+        .from('articulos')
+        .select('cantidad_disponible, cantidad')
+        .eq('id', articuloId)
+        .single();
+
+      if (artError) {
+        console.error('Error leyendo artículo', articuloId, artError);
+        throw artError;
+      }
+
+      const disponible = articuloDB?.cantidad_disponible ?? articuloDB?.cantidad ?? 0;
+      if (qty > disponible) {
+        return res.status(400).json({ error: `No hay suficiente stock para el artículo ${articuloId}. Disponible: ${disponible}, solicitado: ${qty}` });
+      }
+
+      for (let i = 0; i < qty; i++) {
+        articulosData.push({
+          alquiler_id: alquiler.id,
+          articulo_id: articuloId,
+          estado: 'alquilado'
+        });
+      }
+    }
+
+    console.log('Insertando artículos (expanded by cantidad):', articulosData.length, 'rows');
 
     const { error: articulosError } = await supabase
       .from('alquiler_articulos')
@@ -162,135 +192,59 @@ router.post('/:id/devolucion', async (req, res) => {
     if (alquilerError) throw alquilerError;
 
     let garantia_retenida = 0;
-    let hay_perdidos = false;
 
-    // Procesar cada artículo
-    for (const art of articulos) {
-      const { articulo_id, estado_devolucion } = art;
+    // Determinar si hay artículos marcados como perdidos en el payload
+    const hay_perdidos = Array.isArray(articulos) && articulos.some(a => String(a.estado_devolucion).toLowerCase() === 'perdido');
 
-      console.log(`Procesando artículo ${articulo_id}: ${estado_devolucion}`);
-
-      // Actualizar estado en alquiler_articulos
-      await supabase
-        .from('alquiler_articulos')
-        .update({ estado: estado_devolucion })
-        .eq('alquiler_id', req.params.id)
-        .eq('articulo_id', articulo_id);
-
-      if (estado_devolucion === 'completo') {
-        // Poner en mantenimiento por 24 horas
-        const fecha_disponible = new Date();
-        fecha_disponible.setHours(fecha_disponible.getHours() + 24);
-        
-        console.log(`  → Mantenimiento 24h hasta ${fecha_disponible}`);
-        
-        // Incrementar cantidad_mantenimiento y actualizar estado
-        const { data: articulo } = await supabase
-          .from('articulos')
-          .select('cantidad_mantenimiento')
-          .eq('id', articulo_id)
-          .single();
-
-        await supabase
-          .from('articulos')
-          .update({ 
-            estado: 'mantenimiento',
-            fecha_disponible: fecha_disponible.toISOString(),
-            cantidad_mantenimiento: (articulo?.cantidad_mantenimiento || 0) + 1
-          })
-          .eq('id', articulo_id);
-
-      } else if (estado_devolucion === 'dañado') {
-        // Poner en mantenimiento por 72 horas
-        const fecha_disponible = new Date();
-        fecha_disponible.setHours(fecha_disponible.getHours() + 72);
-        
-        console.log(`  → Mantenimiento 72h (dañado) hasta ${fecha_disponible}`);
-        
-        // Incrementar cantidad_mantenimiento
-        const { data: articulo } = await supabase
-          .from('articulos')
-          .select('cantidad_mantenimiento')
-          .eq('id', articulo_id)
-          .single();
-
-        await supabase
-          .from('articulos')
-          .update({ 
-            estado: 'mantenimiento',
-            fecha_disponible: fecha_disponible.toISOString(),
-            cantidad_mantenimiento: (articulo?.cantidad_mantenimiento || 0) + 1
-          })
-          .eq('id', articulo_id);
-
-      } else if (estado_devolucion === 'perdido') {
-        hay_perdidos = true;
-        console.log(`  → Artículo PERDIDO`);
-        
-        // Incrementar cantidad_perdida
-        const { data: articulo } = await supabase
-          .from('articulos')
-          .select('cantidad_perdida')
-          .eq('id', articulo_id)
-          .single();
-
-        await supabase
-          .from('articulos')
-          .update({ 
-            estado: 'perdido',
-            cantidad_perdida: (articulo?.cantidad_perdida || 0) + 1
-          })
-          .eq('id', articulo_id);
-      }
-    }
-
-    // Calcular mora si aplica
+    // Calcular mora (igual lógica que antes)
     let mora_total = 0;
     const fecha_fin = new Date(alquiler.fecha_fin);
     const fecha_devolucion = new Date();
-    
     if (fecha_devolucion > fecha_fin) {
       const dias_mora = Math.ceil((fecha_devolucion - fecha_fin) / (1000 * 60 * 60 * 24));
-      
-      // Obtener configuración de mora
       const { data: config } = await supabase
         .from('configuracion')
         .select('mora_diaria, dias_maximos_mora')
         .single();
-
       if (config) {
         const dias_a_cobrar = Math.min(dias_mora, config.dias_maximos_mora);
         mora_total = dias_a_cobrar * config.mora_diaria;
       }
     }
 
-    // Si se retiene garantía o hay artículos perdidos
     if (retener_garantia || hay_perdidos) {
       garantia_retenida = alquiler.garantia;
     }
 
-    // IMPORTANTE: Actualizar el estado del alquiler a 'devuelto'
-    // Esto hace que el trigger recalcule cantidad_alquilada correctamente
-    console.log('Actualizando alquiler a estado: devuelto');
-    const { data, error } = await supabase
+    // Llamada RPC atómica en la base para procesar la devolución
+    console.log('Llamando RPC fn_procesar_devolucion_safe para alquiler:', req.params.id);
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('fn_procesar_devolucion_safe', {
+        p_alquiler: req.params.id,
+        p_articulos: JSON.stringify(articulos),
+        p_mora: mora_total,
+        p_garantia_retenida: garantia_retenida,
+        p_descripcion: descripcion_retencion || null
+      });
+
+    if (rpcError) {
+      console.error('Error RPC fn_procesar_devolucion:', rpcError);
+      throw rpcError;
+    }
+
+    // Recuperar alquiler actualizado para devolver al cliente
+    const { data: updatedAlquiler, error: updatedError } = await supabase
       .from('alquileres')
-      .update({
-        estado: 'devuelto',
-        fecha_devolucion: new Date().toISOString(),
-        mora_cobrada: mora_total,
-        garantia_retenida,
-        descripcion_retencion: descripcion_retencion || null
-      })
+      .select('*')
       .eq('id', req.params.id)
-      .select()
       .single();
 
-    if (error) throw error;
-    
-    console.log('✅ Devolución completada exitosamente');
-    console.log('Estado alquiler:', data.estado);
-    
-    res.json(data);
+    if (updatedError) throw updatedError;
+
+    console.log('✅ Devolución procesada vía RPC correctamente');
+    res.json(updatedAlquiler);
+
+    // NOTA: el flujo retorna dentro del bloque anterior tras la llamada RPC
   } catch (error) {
     console.error('❌ Error en devolución:', error.message);
     res.status(500).json({ error: error.message });
