@@ -23,6 +23,46 @@ class InventarioProvider extends ChangeNotifier {
   List<Articulo> get articulosMantenimiento =>
       _articulos.where((a) => a.isMantenimiento).toList();
 
+  // Resumen por estados (número de artículos con >0 unidades por estado)
+  Map<String, int> _estadosResumen = {};
+  Map<String, List<Map<String, dynamic>>> _estadosListCache = {};
+
+  Map<String, int> get estadosResumen => _estadosResumen;
+
+  List<Map<String, dynamic>> getEstadoList(String tipo) =>
+      _estadosListCache[tipo] ?? [];
+
+  Future<void> cargarResumenEstados() async {
+    try {
+      final response =
+          await http.get(Uri.parse('${ApiConfig.inventario}/estados/summary'));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        _estadosResumen = data.map((k, v) => MapEntry(k, (v as num).toInt()));
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error cargando resumen de estados: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> cargarListaEstado(String tipo) async {
+    try {
+      final response = await http
+          .get(Uri.parse('${ApiConfig.inventario}/estados/list/$tipo'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        final list = data.map((e) => Map<String, dynamic>.from(e)).toList();
+        _estadosListCache[tipo] = list;
+        notifyListeners();
+        return list;
+      }
+    } catch (e) {
+      debugPrint('Error cargando lista de estado $tipo: $e');
+    }
+    return _estadosListCache[tipo] ?? [];
+  }
+
   Future<void> cargarArticulos() async {
     _isLoading = true;
     notifyListeners();

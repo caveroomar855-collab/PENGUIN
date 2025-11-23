@@ -71,21 +71,65 @@ router.get('/estados/summary', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('articulos')
-      .select('cantidad, cantidad_disponible, cantidad_alquilada, cantidad_mantenimiento, cantidad_vendida, cantidad_perdida');
+      .select('id, cantidad, cantidad_disponible, cantidad_alquilada, cantidad_mantenimiento, cantidad_vendida, cantidad_perdida');
 
     if (error) throw error;
 
-    const summary = (data || []).reduce((acc, a) => {
-      acc.total += (a.cantidad || 0);
-      acc.disponibles += (a.cantidad_disponible || 0);
-      acc.alquilados += (a.cantidad_alquilada || 0);
-      acc.mantenimiento += (a.cantidad_mantenimiento || 0);
-      acc.vendidos += (a.cantidad_vendida || 0);
-      acc.perdidos += (a.cantidad_perdida || 0);
-      return acc;
-    }, { total: 0, disponibles: 0, alquilados: 0, mantenimiento: 0, vendidos: 0, perdidos: 0 });
+    // Cambiar lógica: devolver conteos por artículo (número de rows) en lugar de sumas de unidades
+    const rows = data || [];
+    const summary = {
+      total: rows.length, // número de artículos distintos
+      disponibles: rows.filter(a => (a.cantidad_disponible || 0) > 0).length,
+      alquilados: rows.filter(a => (a.cantidad_alquilada || 0) > 0).length,
+      mantenimiento: rows.filter(a => (a.cantidad_mantenimiento || 0) > 0).length,
+      vendidos: rows.filter(a => (a.cantidad_vendida || 0) > 0).length,
+      perdidos: rows.filter(a => (a.cantidad_perdida || 0) > 0).length
+    };
 
     res.json(summary);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Lista de artículos por tipo de estado (muestra nombre y cantidad correspondiente)
+router.get('/estados/list/:tipo', async (req, res) => {
+  try {
+    const tipo = req.params.tipo;
+    let column;
+
+    switch ((tipo || '').toLowerCase()) {
+      case 'disponibles':
+        column = 'cantidad_disponible';
+        break;
+      case 'alquilados':
+        column = 'cantidad_alquilada';
+        break;
+      case 'mantenimiento':
+        column = 'cantidad_mantenimiento';
+        break;
+      case 'vendidos':
+        column = 'cantidad_vendida';
+        break;
+      case 'perdidos':
+        column = 'cantidad_perdida';
+        break;
+      default:
+        return res.status(400).json({ error: 'Tipo inválido. Use: disponibles, alquilados, mantenimiento, vendidos, perdidos' });
+    }
+
+    // Seleccionar artículos donde la columna correspondiente sea > 0
+    const { data, error } = await supabase
+      .from('articulos')
+      .select(`id, nombre, ${column}`)
+      .gt(column, 0)
+      .order('nombre', { ascending: true });
+
+    if (error) throw error;
+
+    // Normalizar nombre de campo a 'cantidad'
+    const list = (data || []).map(a => ({ id: a.id, nombre: a.nombre, cantidad: a[column] || 0 }));
+    res.json(list);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

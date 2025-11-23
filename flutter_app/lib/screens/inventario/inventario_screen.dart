@@ -34,6 +34,7 @@ class _InventarioScreenState extends State<InventarioScreen>
     final provider = Provider.of<InventarioProvider>(context, listen: false);
     await provider.cargarArticulos();
     await provider.cargarTrajes();
+    await provider.cargarResumenEstados();
   }
 
   @override
@@ -529,19 +530,54 @@ class _InventarioScreenState extends State<InventarioScreen>
           return const Center(child: CircularProgressIndicator());
         }
 
-        // Use unit counts (cantidad_*) instead of row counts by estado
-        final total =
-            provider.articulos.fold<int>(0, (sum, a) => sum + (a.cantidad));
-        final disponibles = provider.articulos
-            .fold<int>(0, (sum, a) => sum + (a.cantidadDisponible));
-        final alquilados = provider.articulos
-            .fold<int>(0, (sum, a) => sum + (a.cantidadAlquilada));
-        final mantenimiento = provider.articulos
-            .fold<int>(0, (sum, a) => sum + (a.cantidadMantenimiento));
-        final vendidos = provider.articulos
-            .fold<int>(0, (sum, a) => sum + (a.cantidadVendida));
-        final perdidos = provider.articulos
-            .fold<int>(0, (sum, a) => sum + (a.cantidadPerdida));
+        // Use resumen por artículos (no suma de unidades)
+        final resumen = provider.estadosResumen;
+        final total = resumen['total'] ?? provider.articulos.length;
+
+        Widget buildEstadoExpansion(
+            String tipoKey, String label, Color color, IconData icon) {
+          final cantidad = resumen[tipoKey] ?? 0;
+          return ExpansionTile(
+            leading: CircleAvatar(
+                backgroundColor: color, child: Icon(icon, color: Colors.white)),
+            title: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('$cantidad artículos'),
+            children: [
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: provider.cargarListaEstado(tipoKey),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final items = snapshot.data ?? [];
+                  if (items.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text('No hay artículos'),
+                    );
+                  }
+                  return Column(
+                    children: items.map((a) {
+                      return ListTile(
+                        title: Text(a['nombre'] ?? ''),
+                        trailing: Text((a['cantidad'] ?? 0).toString(),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        onTap: () async {
+                          // opcional: mostrar detalle local si se desea
+                        },
+                      );
+                    }).toList(),
+                  );
+                },
+              )
+            ],
+          );
+        }
 
         return RefreshIndicator(
           onRefresh: _cargarDatos,
@@ -557,82 +593,35 @@ class _InventarioScreenState extends State<InventarioScreen>
                       const Icon(Icons.inventory_2,
                           size: 60, color: Colors.blue),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Total de Artículos',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                      Text(
-                        total.toString(),
-                        style: const TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
-                      ),
+                      const Text('Total de Artículos',
+                          style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      Text(total.toString(),
+                          style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue)),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Desglose por Estado',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              const Text('Desglose por Estado',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              _buildEstadoCard('Disponibles', disponibles, total, Colors.green,
+              buildEstadoExpansion('disponibles', 'Disponibles', Colors.green,
                   Icons.check_circle),
-              _buildEstadoCard('Alquilados', alquilados, total, Colors.blue,
+              buildEstadoExpansion('alquilados', 'Alquilados', Colors.blue,
                   Icons.event_available),
-              _buildEstadoCard('En Mantenimiento', mantenimiento, total,
+              buildEstadoExpansion('mantenimiento', 'En Mantenimiento',
                   Colors.orange, Icons.build),
-              _buildEstadoCard('Vendidos', vendidos, total, Colors.purple,
-                  Icons.shopping_bag),
-              _buildEstadoCard(
-                  'Perdidos', perdidos, total, Colors.red, Icons.error),
+              buildEstadoExpansion(
+                  'vendidos', 'Vendidos', Colors.purple, Icons.shopping_bag),
+              buildEstadoExpansion(
+                  'perdidos', 'Perdidos', Colors.red, Icons.error),
             ],
           ),
         );
       },
-    );
-  }
-
-  Widget _buildEstadoCard(
-      String label, int cantidad, int total, Color color, IconData icon) {
-    final porcentaje =
-        total > 0 ? (cantidad / total * 100).toStringAsFixed(1) : '0.0';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color,
-          child: Icon(icon, color: Colors.white),
-        ),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: LinearProgressIndicator(
-          value: total > 0 ? cantidad / total : 0,
-          backgroundColor: Colors.grey[200],
-          color: color,
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              cantidad.toString(),
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              '$porcentaje%',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

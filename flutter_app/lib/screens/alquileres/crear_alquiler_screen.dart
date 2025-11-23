@@ -209,7 +209,9 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
         );
         return;
       }
-      clienteId = resultado['id'];
+      // ClientesProvider devuelve {'success': true, 'cliente': Cliente}
+      final created = resultado['cliente'];
+      clienteId = created?.id ?? '';
     }
 
     final provider = Provider.of<AlquileresProvider>(context, listen: false);

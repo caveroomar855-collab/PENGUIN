@@ -259,14 +259,15 @@ BEGIN
             AND al.estado = 'activo'
         ), 0),
         
-        -- cantidad_disponible = total - alquilados - mantenimiento - vendidos - perdidos
+        -- cantidad_disponible = total - alquilados - mantenimiento - vendidos
+        -- NOTA: no restar `cantidad_perdida` aquí porque `cantidad` ya refleja las unidades físicas actuales
         cantidad_disponible = a.cantidad - COALESCE((
           SELECT COUNT(*) 
           FROM alquiler_articulos aa
           JOIN alquileres al ON aa.alquiler_id = al.id
           WHERE aa.articulo_id = a.id 
             AND al.estado = 'activo'
-        ), 0) - a.cantidad_mantenimiento - a.cantidad_vendida - a.cantidad_perdida
+        ), 0) - a.cantidad_mantenimiento - a.cantidad_vendida
       WHERE a.id = v_articulo_id;
     END LOOP;
     
@@ -290,7 +291,7 @@ BEGIN
         JOIN alquileres al ON aa.alquiler_id = al.id
         WHERE aa.articulo_id = a.id 
           AND al.estado = 'activo'
-      ), 0) - a.cantidad_mantenimiento - a.cantidad_vendida - a.cantidad_perdida
+      ), 0) - a.cantidad_mantenimiento - a.cantidad_vendida
     WHERE a.id = v_articulo_id;
   END IF;
   

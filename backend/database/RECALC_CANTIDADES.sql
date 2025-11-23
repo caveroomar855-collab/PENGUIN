@@ -34,11 +34,12 @@ BEGIN
   WHERE id = p_articulo;
 
   -- Update articulos with recalculated values
+  -- NOTA: `v_total` ya representa la cantidad física actual; `v_perdida` se mantiene para reportes
   UPDATE articulos
   SET
     cantidad_alquilada = v_alquilada,
     cantidad_vendida = v_vendida,
-    cantidad_disponible = GREATEST(v_total - v_alquilada - v_mantenimiento - v_vendida - v_perdida, 0),
+    cantidad_disponible = GREATEST(v_total - v_alquilada - v_mantenimiento - v_vendida, 0),
     updated_at = NOW()
   WHERE id = p_articulo;
 END;

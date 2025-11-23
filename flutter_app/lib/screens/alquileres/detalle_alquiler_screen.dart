@@ -39,127 +39,173 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
 
   Future<void> _mostrarDialogoDevolucion() async {
     if (_alquiler == null) return;
-
-    // Prepare per-article estado selection and cantidades
-    bool retenerGarantia = false;
-    final Map<String, String> estadoPorArticulo = {};
-    final Map<String, int> cantidadPorArticulo = {};
-
-    // agrupar unidades por articulo_id (alquiler_articulos tiene filas por unidad)
+    // Nuevo diálogo: tres secciones (Completo, Con daños, Perdido)
+    // Agrupar unidades por articulo_id
+    final Map<String, int> available = {};
+    final Map<String, dynamic> articuloDataById = {};
     for (final a in _alquiler!.articulos) {
       final id = a.articuloId;
-      estadoPorArticulo[id] = 'completo';
-      cantidadPorArticulo[id] = (cantidadPorArticulo[id] ?? 0) + 1;
+      available[id] = (available[id] ?? 0) + 1;
+      if (articuloDataById[id] == null) articuloDataById[id] = a.articulo;
     }
+
+    bool retenerGarantia = false;
+    final Map<String, int> selCompleto = {};
+    final Map<String, int> selDanado = {};
+    final Map<String, int> selPerdido = {};
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (context) => StatefulBuilder(builder: (context, setDialogState) {
+        int totalSelected(String id) {
+          return (selCompleto[id] ?? 0) +
+              (selDanado[id] ?? 0) +
+              (selPerdido[id] ?? 0);
+        }
+
+        Widget buildArticleRow(String artId, String state) {
+          final art = articuloDataById[artId];
+          final max = available[artId] ?? 1;
+          final otherSelected = totalSelected(artId) -
+              (state == 'completo'
+                  ? (selCompleto[artId] ?? 0)
+                  : state == 'danado'
+                      ? (selDanado[artId] ?? 0)
+                      : (selPerdido[artId] ?? 0));
+          final remaining = max - otherSelected;
+          final cur = (state == 'completo'
+                  ? selCompleto[artId]
+                  : state == 'danado'
+                      ? selDanado[artId]
+                      : selPerdido[artId]) ??
+              0;
+
+          final disabled = remaining <= 0 && cur == 0;
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            '${art?.tipo ?? ''} - ${art?.talla ?? ''} (${art?.codigo ?? ''})',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: disabled ? Colors.grey : null)),
+                        const SizedBox(height: 4),
+                        Text('${art?.color ?? ''}',
+                            style: TextStyle(
+                                color: disabled ? Colors.grey : null)),
+                        Text('Disponibles: $max',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                      color: disabled ? Colors.grey.shade200 : null,
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove),
+                          onPressed: disabled || cur <= 0
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    if (state == 'completo') {
+                                      selCompleto[artId] =
+                                          (selCompleto[artId] ?? 0) - 1;
+                                      if (selCompleto[artId]! <= 0)
+                                        selCompleto.remove(artId);
+                                    } else if (state == 'danado') {
+                                      selDanado[artId] =
+                                          (selDanado[artId] ?? 0) - 1;
+                                      if (selDanado[artId]! <= 0)
+                                        selDanado.remove(artId);
+                                    } else {
+                                      selPerdido[artId] =
+                                          (selPerdido[artId] ?? 0) - 1;
+                                      if (selPerdido[artId]! <= 0)
+                                        selPerdido.remove(artId);
+                                    }
+                                  });
+                                },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text('$cur',
+                              style: TextStyle(
+                                  color: disabled ? Colors.grey : null)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: disabled || cur >= remaining
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    if (state == 'completo') {
+                                      selCompleto[artId] =
+                                          (selCompleto[artId] ?? 0) + 1;
+                                    } else if (state == 'danado') {
+                                      selDanado[artId] =
+                                          (selDanado[artId] ?? 0) + 1;
+                                    } else {
+                                      selPerdido[artId] =
+                                          (selPerdido[artId] ?? 0) + 1;
+                                    }
+                                  });
+                                },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return AlertDialog(
           title: const Text('Marcar Devolución'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Seleccione el estado de cada artículo:'),
+                const Text('Seleccione estado y cantidad por artículo:'),
                 const SizedBox(height: 12),
-                // Mostrar por artículo único: estado + cantidad a devolver/marcar
-                ...cantidadPorArticulo.keys.map((artId) {
-                  final artData = _alquiler!.articulos
-                      .firstWhere((a) => a.articuloId == artId);
-                  final art = artData.articulo;
-                  if (art == null) return const SizedBox();
-
-                  final selected = estadoPorArticulo[artId] ?? 'completo';
-                  final maxQty = cantidadPorArticulo[artId] ?? 1;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: StatefulBuilder(
-                        builder: (context, setInnerState) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${art.tipo} - ${art.talla} (${art.codigo})',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: DropdownButton<String>(
-                                    value: selected,
-                                    items: const [
-                                      DropdownMenuItem(
-                                          value: 'completo',
-                                          child: Text('Completo (sin daños)')),
-                                      DropdownMenuItem(
-                                          value: 'danado',
-                                          child: Text('Con daños')),
-                                      DropdownMenuItem(
-                                          value: 'perdido',
-                                          child: Text('Perdido')),
-                                    ],
-                                    onChanged: (val) => setDialogState(() =>
-                                        estadoPorArticulo[artId] =
-                                            val ?? 'completo'),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                // cantidad selector
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border:
-                                        Border.all(color: Colors.grey.shade300),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.remove),
-                                        onPressed: () {
-                                          setInnerState(() {
-                                            final cur =
-                                                cantidadPorArticulo[artId] ?? 1;
-                                            if (cur > 1) {
-                                              cantidadPorArticulo[artId] =
-                                                  cur - 1;
-                                            }
-                                          });
-                                        },
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8.0),
-                                        child: Text(
-                                            '${cantidadPorArticulo[artId]}'),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.add),
-                                        onPressed: () {
-                                          setInnerState(() {
-                                            final cur =
-                                                cantidadPorArticulo[artId] ?? 1;
-                                            if (cur < maxQty) {
-                                              cantidadPorArticulo[artId] =
-                                                  cur + 1;
-                                            }
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+                ExpansionTile(
+                  title: const Text('COMPLETO'),
+                  initiallyExpanded: true,
+                  children: [
+                    for (final artId in available.keys)
+                      buildArticleRow(artId, 'completo')
+                  ],
+                ),
+                ExpansionTile(
+                  title: const Text('CON DAÑOS'),
+                  children: [
+                    for (final artId in available.keys)
+                      buildArticleRow(artId, 'danado')
+                  ],
+                ),
+                ExpansionTile(
+                  title: const Text('PERDIDO'),
+                  children: [
+                    for (final artId in available.keys)
+                      buildArticleRow(artId, 'perdido')
+                  ],
+                ),
                 const Divider(),
                 CheckboxListTile(
                   title: const Text('Retener garantía'),
@@ -181,10 +227,8 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                       children: [
                         const Icon(Icons.warning, color: Colors.red),
                         const SizedBox(width: 8),
-                        Text(
-                          'Mora de ${_alquiler!.diasMora} días',
-                          style: const TextStyle(color: Colors.red),
-                        ),
+                        Text('Mora de ${_alquiler!.diasMora} días',
+                            style: const TextStyle(color: Colors.red)),
                       ],
                     ),
                   ),
@@ -194,9 +238,8 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar')),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style:
@@ -204,24 +247,94 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
               child: const Text('Confirmar'),
             ),
           ],
-        ),
-      ),
+        );
+      }),
     );
 
     if (result == true && mounted) {
       final provider = Provider.of<AlquileresProvider>(context, listen: false);
 
-      final articulosPayload = cantidadPorArticulo.entries
-          .map((e) => {
-                'articulo_id': e.key,
-                'estado_devolucion': estadoPorArticulo[e.key] ?? 'completo',
-                'cantidad': e.value,
-              })
-          .toList();
+      final List<Map<String, dynamic>> articulosPayload = [];
+      selCompleto.forEach((k, v) {
+        if (v > 0)
+          articulosPayload.add({
+            'articulo_id': k,
+            'estado_devolucion': 'completo',
+            'cantidad': v
+          });
+      });
+      selDanado.forEach((k, v) {
+        if (v > 0)
+          articulosPayload.add(
+              {'articulo_id': k, 'estado_devolucion': 'danado', 'cantidad': v});
+      });
+      selPerdido.forEach((k, v) {
+        if (v > 0)
+          articulosPayload.add({
+            'articulo_id': k,
+            'estado_devolucion': 'perdido',
+            'cantidad': v
+          });
+      });
+
+      // Mostrar resumen y pedir confirmación antes de enviar
+      final resumenLines = <String>[];
+      if (selCompleto.isNotEmpty) {
+        resumenLines.add('COMPLETO:');
+        selCompleto.forEach((k, v) {
+          final art = articuloDataById[k];
+          resumenLines.add('  ${art?.tipo ?? ''} ${art?.codigo ?? ''} x$v');
+        });
+      }
+      if (selDanado.isNotEmpty) {
+        resumenLines.add('CON DAÑOS:');
+        selDanado.forEach((k, v) {
+          final art = articuloDataById[k];
+          resumenLines.add('  ${art?.tipo ?? ''} ${art?.codigo ?? ''} x$v');
+        });
+      }
+      if (selPerdido.isNotEmpty) {
+        resumenLines.add('PERDIDO:');
+        selPerdido.forEach((k, v) {
+          final art = articuloDataById[k];
+          resumenLines.add('  ${art?.tipo ?? ''} ${art?.codigo ?? ''} x$v');
+        });
+      }
+
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirmar Devolución'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...resumenLines.map((l) => Text(l)),
+                const SizedBox(height: 12),
+                if (retenerGarantia)
+                  Text('Se retendrá la garantía',
+                      style: TextStyle(color: Colors.orange[800])),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirmar')),
+          ],
+        ),
+      );
+
+      if (confirmar != true) return;
 
       final success = await provider.marcarDevolucion(
         widget.alquilerId,
-        articulosPayload.cast<Map<String, dynamic>>(),
+        articulosPayload,
         retenerGarantia,
         retenerGarantia ? 'Garantía retenida' : null,
       );
@@ -229,13 +342,11 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
       if (mounted) {
         if (success) {
           Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Devolución registrada exitosamente')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Devolución registrada exitosamente')));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al registrar la devolución')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Error al registrar la devolución')));
         }
       }
     }
