@@ -221,17 +221,32 @@ router.post('/:id/devolucion', async (req, res) => {
     }
 
     // Llamada RPC atómica en la base para procesar la devolución
-    console.log('Llamando RPC fn_procesar_devolucion_safe para alquiler:', req.params.id);
+    console.log('Llamando RPC de devolución (preferencia: v2) para alquiler:', req.params.id);
     console.log('Payload RPC p_articulos (object):', articulos);
-    const { data: rpcData, error: rpcError } = await supabase
-      .rpc('fn_procesar_devolucion_safe', {
+
+    // Try calling v2 of the function first (safer). If it doesn't exist on the DB,
+    // fall back to the classic name so deployments that haven't applied the SQL still work.
+    let rpcResponse;
+    try {
+      rpcResponse = await supabase.rpc('fn_procesar_devolucion_safe_v2', {
         p_alquiler: req.params.id,
-        // pasar como JSON/Array para que Supabase lo reciba como jsonb, NO como string
         p_articulos: articulos,
         p_mora: mora_total,
         p_garantia_retenida: garantia_retenida,
         p_descripcion: descripcion_retencion || null
       });
+    } catch (err) {
+      console.warn('fn_procesar_devolucion_safe_v2 no disponible, intentando fn_procesar_devolucion_safe:', err.message || err);
+      rpcResponse = await supabase.rpc('fn_procesar_devolucion_safe', {
+        p_alquiler: req.params.id,
+        p_articulos: articulos,
+        p_mora: mora_total,
+        p_garantia_retenida: garantia_retenida,
+        p_descripcion: descripcion_retencion || null
+      });
+    }
+
+    const { data: rpcData, error: rpcError } = rpcResponse;
 
     if (rpcError) {
       console.error('Error RPC fn_procesar_devolucion:', rpcError);
@@ -248,7 +263,39 @@ router.post('/:id/devolucion', async (req, res) => {
     if (updatedError) throw updatedError;
 
     console.log('✅ Devolución procesada vía RPC correctamente');
-    res.json(updatedAlquiler);
+      // Safety check: ensure the alquiler was not closed accidentally while there
+      // are still 'alquilado' rows (this can happen if an older DB function
+      // that always sets estado='devuelto' is present). If that happens, revert
+      // estado to 'activo' so the rental remains open.
+      const { data: countData, error: countError } = await supabase
+        .from('alquiler_articulos')
+        .select('id', { count: 'planned' })
+        .eq('alquiler_id', req.params.id)
+        .eq('estado', 'alquilado');
+
+      if (countError) {
+        console.warn('No se pudo verificar conteo de unidades alquiladas:', countError);
+      } else {
+        const remainingAlquilados = Array.isArray(countData) ? countData.length : 0;
+        if (remainingAlquilados > 0 && updatedAlquiler.estado === 'devuelto') {
+          console.warn('Alquiler marcado como devuelto pero aún hay unidades alquiladas. Revirtiendo estado a activo.');
+          const { data: reverted, error: revertError } = await supabase
+            .from('alquileres')
+            .update({ estado: 'activo', fecha_devolucion: null })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+
+          if (revertError) {
+            console.error('Error revirtiendo estado del alquiler:', revertError);
+          } else {
+            // Return the reverted record with a warning
+            return res.json({ warning: 'Devolución parcial: el alquiler quedó abierto (se revirtió un cierre prematuro).', alquiler: reverted });
+          }
+        }
+      }
+
+      res.json(updatedAlquiler);
 
     // NOTA: el flujo retorna dentro del bloque anterior tras la llamada RPC
   } catch (error) {
