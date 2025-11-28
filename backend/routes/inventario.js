@@ -165,7 +165,6 @@ router.post('/articulos', async (req, res) => {
       nombre,
       tipo,
       talla,
-      color,
       cantidad = 1,
       precio_alquiler,
       precio_venta
@@ -181,7 +180,6 @@ router.post('/articulos', async (req, res) => {
         nombre,
         tipo,
         talla,
-        color: color || null,
         cantidad,
         cantidad_disponible: cantidad,
         cantidad_alquilada: 0,
@@ -210,7 +208,6 @@ router.put('/articulos/:id', async (req, res) => {
       nombre, 
       tipo, 
       talla, 
-      color, 
       precio_alquiler, 
       precio_venta 
     } = req.body;
@@ -222,7 +219,6 @@ router.put('/articulos/:id', async (req, res) => {
         nombre,
         tipo,
         talla,
-        color,
         precio_alquiler,
         precio_venta
       })
