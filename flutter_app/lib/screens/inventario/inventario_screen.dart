@@ -640,8 +640,6 @@ class _InventarioScreenState extends State<InventarioScreen>
               _buildDetalleRow('DISPONIBLE:',
                   '${articulo.cantidadDisponible} / ${articulo.cantidad}'),
               _buildDetalleRow('ALQUILADO:', '${articulo.cantidadAlquilada}'),
-              _buildDetalleRow(
-                  'MANTENIMIENTO:', '${articulo.cantidadMantenimiento}'),
               if (enMantenimiento && articulo.fechaDisponible != null)
                 _buildDetalleRow(
                   'Disponible el:',
@@ -720,102 +718,103 @@ class _InventarioScreenState extends State<InventarioScreen>
                   Text('Stock total: ${articulo.cantidad}'),
                   Text('Disponibles: ${articulo.cantidadDisponible}',
                       style: const TextStyle(color: Colors.green)),
-                  Text('En mantenimiento: ${articulo.cantidadMantenimiento}',
-                      style: const TextStyle(color: Colors.orange)),
                   Text('Alquilados: ${articulo.cantidadAlquilada}',
                       style: const TextStyle(color: Colors.blue)),
                   const Divider(height: 24),
-                  if (hasQuitar) ...[
-                    const Text('Unidades en mantenimiento:',
+                  if (hasQuitar || hasPoner) ...[
+                    const Text('Gestionar Unidades en Mantenimiento',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Cantidad a quitar de mantenimiento',
-                        border: OutlineInputBorder(),
-                        helperText: 'Dejar en blanco para quitar todas',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        final parsed = int.tryParse(value);
-                        if (parsed != null &&
-                            parsed <= articulo.cantidadMantenimiento) {
-                          setDialogState(() => cantidad = parsed);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (hasPoner) ...[
-                    const Text('Poner unidades en mantenimiento:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Cantidad',
-                        border: const OutlineInputBorder(),
-                        helperText: 'Máximo: ${articulo.cantidadDisponible}',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        final parsed = int.tryParse(value);
-                        if (parsed != null &&
-                            parsed > 0 &&
-                            parsed <= articulo.cantidadDisponible) {
-                          setDialogState(() => cantidad = parsed);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('¿Por cuánto tiempo?'),
-                    const SizedBox(height: 8),
-                    RadioListTile<int>(
-                      dense: true,
-                      title: const Text('24 horas'),
-                      value: 24,
-                      groupValue: indefinido ? null : horas,
-                      onChanged: indefinido
-                          ? null
-                          : (value) {
-                              setDialogState(() => horas = value);
-                            },
-                    ),
-                    RadioListTile<int>(
-                      dense: true,
-                      title: const Text('72 horas'),
-                      value: 72,
-                      groupValue: indefinido ? null : horas,
-                      onChanged: indefinido
-                          ? null
-                          : (value) {
-                              setDialogState(() => horas = value);
-                            },
-                    ),
-                    CheckboxListTile(
-                      dense: true,
-                      title: const Text('Tiempo indefinido'),
-                      value: indefinido,
-                      onChanged: (value) {
-                        setDialogState(() => indefinido = value ?? false);
-                      },
-                    ),
-                    if (!indefinido) ...[
+
+                    // Quitar unidades de mantenimiento (si aplica)
+                    if (hasQuitar) ...[
                       TextField(
                         decoration: const InputDecoration(
-                          labelText: 'Horas personalizadas',
+                          labelText: 'Cantidad a quitar de mantenimiento',
                           border: OutlineInputBorder(),
-                          suffixText: 'hrs',
+                          helperText: 'Dejar en blanco para quitar todas',
                         ),
                         keyboardType: TextInputType.number,
                         onChanged: (value) {
                           final parsed = int.tryParse(value);
-                          if (parsed != null) {
-                            setDialogState(() => horas = parsed);
+                          if (parsed != null &&
+                              parsed <= articulo.cantidadMantenimiento) {
+                            setDialogState(() => cantidad = parsed);
                           }
                         },
                       ),
+                      const SizedBox(height: 12),
                     ],
-                    const SizedBox(height: 16),
+
+                    // Poner unidades en mantenimiento (si aplica)
+                    if (hasPoner) ...[
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Cantidad',
+                          border: const OutlineInputBorder(),
+                          helperText: 'Máximo: ${articulo.cantidadDisponible}',
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          final parsed = int.tryParse(value);
+                          if (parsed != null &&
+                              parsed > 0 &&
+                              parsed <= articulo.cantidadDisponible) {
+                            setDialogState(() => cantidad = parsed);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('¿Por cuánto tiempo?'),
+                      const SizedBox(height: 8),
+                      RadioListTile<int>(
+                        dense: true,
+                        title: const Text('24 horas'),
+                        value: 24,
+                        groupValue: indefinido ? null : horas,
+                        onChanged: indefinido
+                            ? null
+                            : (value) {
+                                setDialogState(() => horas = value);
+                              },
+                      ),
+                      RadioListTile<int>(
+                        dense: true,
+                        title: const Text('72 horas'),
+                        value: 72,
+                        groupValue: indefinido ? null : horas,
+                        onChanged: indefinido
+                            ? null
+                            : (value) {
+                                setDialogState(() => horas = value);
+                              },
+                      ),
+                      CheckboxListTile(
+                        dense: true,
+                        title: const Text('Tiempo indefinido'),
+                        value: indefinido,
+                        onChanged: (value) {
+                          setDialogState(() => indefinido = value ?? false);
+                        },
+                      ),
+                      if (!indefinido) ...[
+                        TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Horas personalizadas',
+                            border: OutlineInputBorder(),
+                            suffixText: 'hrs',
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            final parsed = int.tryParse(value);
+                            if (parsed != null) {
+                              setDialogState(() => horas = parsed);
+                            }
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                    ],
                   ],
                   if (hasQuitar || hasPoner)
                     Row(

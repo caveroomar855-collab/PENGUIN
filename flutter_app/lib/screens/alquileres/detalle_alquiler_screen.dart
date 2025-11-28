@@ -193,21 +193,24 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                   children: [
                     for (final artId in available.keys)
                       // Skip rows with zero available units (already fully returned)
-                      if ((available[artId] ?? 0) > 0) buildArticleRow(artId, 'completo')
+                      if ((available[artId] ?? 0) > 0)
+                        buildArticleRow(artId, 'completo')
                   ],
                 ),
                 ExpansionTile(
                   title: const Text('CON DAÑOS'),
                   children: [
                     for (final artId in available.keys)
-                      if ((available[artId] ?? 0) > 0) buildArticleRow(artId, 'danado')
+                      if ((available[artId] ?? 0) > 0)
+                        buildArticleRow(artId, 'danado')
                   ],
                 ),
                 ExpansionTile(
                   title: const Text('PERDIDO'),
                   children: [
                     for (final artId in available.keys)
-                      if ((available[artId] ?? 0) > 0) buildArticleRow(artId, 'perdido')
+                      if ((available[artId] ?? 0) > 0)
+                        buildArticleRow(artId, 'perdido')
                   ],
                 ),
                 const Divider(),
@@ -309,17 +312,24 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
       }
 
       // If only one unit is being returned, show a minimal confirmation dialog
-      final totalSelected = articulosPayload.fold<int>(0, (s, e) => s + (e['cantidad'] as int? ?? 1));
+      final totalSelected = articulosPayload.fold<int>(
+          0, (s, e) => s + (e['cantidad'] as int? ?? 1));
       bool? confirmar;
       if (totalSelected == 1) {
         confirmar = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Confirmar Devolución'),
-            content: Text(resumenLines.isNotEmpty ? resumenLines.join('\n') : 'Devolver 1 artículo?'),
+            content: Text(resumenLines.isNotEmpty
+                ? resumenLines.join('\n')
+                : 'Devolver 1 artículo?'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Aceptar')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar')),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Aceptar')),
             ],
           ),
         );
@@ -337,13 +347,18 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                   ...resumenLines.map((l) => Text(l)),
                   const SizedBox(height: 12),
                   if (retenerGarantia)
-                    Text('Se retendrá la garantía', style: TextStyle(color: Colors.orange[800])),
+                    Text('Se retendrá la garantía',
+                        style: TextStyle(color: Colors.orange[800])),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirmar')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar')),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Confirmar')),
             ],
           ),
         );

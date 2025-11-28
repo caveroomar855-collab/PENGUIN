@@ -86,6 +86,41 @@ router.post('/', async (req, res) => {
     if (articulosError) throw articulosError;
 
     // Los triggers de la base de datos se encargan de actualizar el inventario automáticamente
+    // Pero si la venta agotó la cantidad de un artículo (cantidad <= 0), eliminarlo
+    try {
+      const articuloIds = articulosData.map(a => a.articulo_id);
+      if (articuloIds.length > 0) {
+        // Buscar los artículos afectados que ahora no tienen unidades físicas restantes.
+        // Se considera que no quedan unidades si: cantidad - cantidad_vendida - cantidad_perdida <= 0
+        const { data: items, error: itemsError } = await supabase
+          .from('articulos')
+          .select('id, cantidad, cantidad_vendida, cantidad_perdida')
+          .in('id', articuloIds);
+
+        if (itemsError) {
+          console.warn('No se pudo comprobar artículos vacíos tras la venta:', itemsError);
+        } else if (items && items.length > 0) {
+          const idsToDelete = items
+            .filter(i => ((i.cantidad || 0) - (i.cantidad_vendida || 0) - (i.cantidad_perdida || 0)) <= 0)
+            .map(i => i.id);
+
+          if (idsToDelete.length > 0) {
+            const { error: delError } = await supabase
+              .from('articulos')
+              .delete()
+              .in('id', idsToDelete);
+
+            if (delError) {
+              console.warn('Error eliminando artículos sin unidades físicas:', delError);
+            } else {
+              console.log('Eliminados artículos sin unidades físicas:', idsToDelete);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error en limpieza post-venta:', e);
+    }
 
     res.status(201).json(venta);
   } catch (error) {

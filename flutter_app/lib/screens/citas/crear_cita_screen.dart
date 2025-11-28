@@ -535,14 +535,17 @@ class _CrearCitaScreenState extends State<CrearCitaScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al crear cliente: ${resultado['message']}'),
+              content: Text(
+                  'Error al crear cliente: ${resultado['error'] ?? 'Error desconocido'}'),
               backgroundColor: Colors.red,
             ),
           );
         }
         return;
       }
-      clienteId = resultado['data']['id'];
+      // ClientesProvider devuelve {'success': true, 'cliente': Cliente}
+      final created = resultado['cliente'];
+      clienteId = created?.id ?? '';
     }
 
     // Crear la cita
