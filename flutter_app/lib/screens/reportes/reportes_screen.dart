@@ -17,6 +17,7 @@ class ReportesScreen extends StatefulWidget {
 class _ReportesScreenState extends State<ReportesScreen> {
   DateTime _fechaInicio = DateTime.now().subtract(const Duration(days: 30));
   DateTime _fechaFin = DateTime.now();
+  DateTime _fechaInventario = DateTime.now();
   String _tipoReporte = 'alquileres';
   bool _cargando = false;
   // _datosReporte removed because it's not read elsewhere; use local vars when needed.
@@ -78,57 +79,87 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: _fechaInicio,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setState(() => _fechaInicio = picked);
-                            }
-                          },
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Fecha Inicio',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.calendar_today),
+                  // Para inventario usamos una sola fecha; para otros reportes un rango
+                  if (_tipoReporte == 'inventario')
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _fechaInventario,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                setState(() => _fechaInventario = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Fecha',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.calendar_today),
+                              ),
+                              child: Text(dateFormat.format(_fechaInventario)),
                             ),
-                            child: Text(dateFormat.format(_fechaInicio)),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: _fechaFin,
-                              firstDate: _fechaInicio,
-                              lastDate: DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setState(() => _fechaFin = picked);
-                            }
-                          },
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Fecha Fin',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.event),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _fechaInicio,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                setState(() => _fechaInicio = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Fecha Inicio',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.calendar_today),
+                              ),
+                              child: Text(dateFormat.format(_fechaInicio)),
                             ),
-                            child: Text(dateFormat.format(_fechaFin)),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _fechaFin,
+                                firstDate: _fechaInicio,
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                setState(() => _fechaFin = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Fecha Fin',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.event),
+                              ),
+                              child: Text(dateFormat.format(_fechaFin)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -292,13 +323,18 @@ class _ReportesScreenState extends State<ReportesScreen> {
         return null;
       }
 
+      Map<String, dynamic> body = {};
+      if (_tipoReporte == 'inventario') {
+        final fechaStr = DateFormat('yyyy-MM-dd').format(_fechaInventario);
+        body = {'fecha': fechaStr};
+      } else {
+        body = {'fecha_inicio': fechaInicioStr, 'fecha_fin': fechaFinStr};
+      }
+
       final response = await http.post(
         Uri.parse(endpoint),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'fecha_inicio': fechaInicioStr,
-          'fecha_fin': fechaFinStr,
-        }),
+        body: json.encode(body),
       );
 
       if (response.statusCode == 200) {
@@ -347,7 +383,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Período: ${dateFormat.format(_fechaInicio)} - ${dateFormat.format(_fechaFin)}',
+                    _tipoReporte == 'inventario'
+                        ? 'Fecha: ${dateFormat.format(_fechaInventario)}'
+                        : 'Período: ${dateFormat.format(_fechaInicio)} - ${dateFormat.format(_fechaFin)}',
                     style: const pw.TextStyle(
                         fontSize: 12, color: PdfColors.grey700),
                   ),
@@ -402,7 +440,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       pw.Text(
                         _tipoReporte == 'alquileres'
                             ? '${datos['total_alquileres'] ?? 0}'
-                            : '${datos['total_ventas'] ?? 0}',
+                            : _tipoReporte == 'ventas'
+                                ? '${datos['total_ventas'] ?? 0}'
+                                : '${datos['total_articulos'] ?? 0}',
                         style: pw.TextStyle(
                           fontSize: 14,
                           fontWeight: pw.FontWeight.bold,
@@ -422,11 +462,16 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         ),
                       ),
                       pw.Text(
-                        currencyFormat.format(datos['total_ingresos'] ?? 0),
+                        _tipoReporte == 'inventario'
+                            ? '${datos['total_unidades'] ?? 0}'
+                            : currencyFormat
+                                .format(datos['total_ingresos'] ?? 0),
                         style: pw.TextStyle(
                           fontSize: 18,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.green900,
+                          color: _tipoReporte == 'inventario'
+                              ? PdfColors.blue900
+                              : PdfColors.green900,
                         ),
                       ),
                     ],
@@ -720,8 +765,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                  'Período: ${dateFormat.format(_fechaInicio)} - ${dateFormat.format(_fechaFin)}'),
+              Text(_tipoReporte == 'inventario'
+                  ? 'Fecha: ${dateFormat.format(_fechaInventario)}'
+                  : 'Período: ${dateFormat.format(_fechaInicio)} - ${dateFormat.format(_fechaFin)}'),
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 8),
@@ -732,11 +778,17 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 'Total de $_tipoReporte',
                 _tipoReporte == 'alquileres'
                     ? '${datos['total_alquileres'] ?? 0}'
-                    : '${datos['total_ventas'] ?? 0}',
+                    : _tipoReporte == 'ventas'
+                        ? '${datos['total_ventas'] ?? 0}'
+                        : '${datos['total_articulos'] ?? 0}',
               ),
               _buildResumenItem(
-                'Ingresos totales',
-                currencyFormat.format(datos['total_ingresos'] ?? 0),
+                _tipoReporte == 'inventario'
+                    ? 'Total unidades'
+                    : 'Ingresos totales',
+                _tipoReporte == 'inventario'
+                    ? '${datos['total_unidades'] ?? 0}'
+                    : currencyFormat.format(datos['total_ingresos'] ?? 0),
               ),
               const SizedBox(height: 16),
               if (_tipoReporte == 'alquileres' &&
