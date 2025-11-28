@@ -94,6 +94,25 @@ router.post('/', async (req, res) => {
     }
     console.log('Artículos a alquilar:', articulos);
 
+    // Si no se pasa garantía en el payload, usar el valor por defecto desde configuracion
+    let garantiaToUse = garantia;
+    if (garantiaToUse === undefined || garantiaToUse === null) {
+      try {
+        const { data: config, error: configError } = await supabase
+          .from('configuracion')
+          .select('garantia_default')
+          .single();
+        if (config && config.garantia_default !== undefined && config.garantia_default !== null) {
+          garantiaToUse = config.garantia_default;
+        } else {
+          garantiaToUse = 0;
+        }
+      } catch (cfgErr) {
+        console.warn('No se pudo leer configuracion para garantia_default, usando 0:', cfgErr.message || cfgErr);
+        garantiaToUse = 0;
+      }
+    }
+
     // Crear alquiler
     const { data: alquiler, error: alquilerError } = await supabase
       .from('alquileres')
@@ -102,7 +121,7 @@ router.post('/', async (req, res) => {
         fecha_inicio,
         fecha_fin,
         monto_alquiler,
-        garantia,
+        garantia: garantiaToUse,
         metodo_pago: metodo_pago || 'efectivo',
         observaciones: observaciones || null,
         estado: 'activo'

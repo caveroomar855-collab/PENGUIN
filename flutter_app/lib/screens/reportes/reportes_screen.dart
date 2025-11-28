@@ -57,9 +57,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       DropdownMenuItem(
                           value: 'inventario',
                           child: Text('Estado de Inventario')),
-                      DropdownMenuItem(
-                          value: 'clientes',
-                          child: Text('Reporte de Clientes')),
+                      // Clientes report removed per request
                     ],
                     onChanged: (value) {
                       setState(() => _tipoReporte = value!);
@@ -288,6 +286,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
         endpoint = '${ApiConfig.reportes}/alquileres';
       } else if (_tipoReporte == 'ventas') {
         endpoint = '${ApiConfig.reportes}/ventas';
+      } else if (_tipoReporte == 'inventario') {
+        endpoint = '${ApiConfig.reportes}/inventario';
       } else {
         return null;
       }
@@ -368,7 +368,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
             if (_tipoReporte == 'alquileres')
               _construirTablaAlquileres(datos, dateFormat, currencyFormat)
             else if (_tipoReporte == 'ventas')
-              _construirTablaVentas(datos, dateFormat, currencyFormat),
+              _construirTablaVentas(datos, dateFormat, currencyFormat)
+            else if (_tipoReporte == 'inventario')
+              _construirTablaInventario(datos),
 
             pw.SizedBox(height: 30),
 
@@ -591,6 +593,57 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
   }
 
+  pw.Widget _construirTablaInventario(Map<String, dynamic> datos) {
+    final articulos = (datos['articulos'] as List?) ?? [];
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(3),
+        1: const pw.FlexColumnWidth(1.5),
+        2: const pw.FlexColumnWidth(1.5),
+        3: const pw.FlexColumnWidth(1.2),
+        4: const pw.FlexColumnWidth(1.2),
+        5: const pw.FlexColumnWidth(1.2),
+        6: const pw.FlexColumnWidth(1.2),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.blue100),
+          children: [
+            _celdaEncabezado('Nombre'),
+            _celdaEncabezado('Tipo'),
+            _celdaEncabezado('Talla'),
+            _celdaEncabezado('Total'),
+            _celdaEncabezado('Disponibles'),
+            _celdaEncabezado('Alquil.'),
+            _celdaEncabezado('Mant.'),
+          ],
+        ),
+        ...articulos.map((art) {
+          final nombre = art['nombre'] ?? '';
+          final tipo = art['tipo'] ?? '';
+          final talla = art['talla'] ?? '';
+          final total = art['cantidad']?.toString() ?? '0';
+          final disponibles = art['cantidad_disponible']?.toString() ?? '0';
+          final alquiladas = art['cantidad_alquilada']?.toString() ?? '0';
+          final mantenimiento =
+              art['cantidad_mantenimiento']?.toString() ?? '0';
+
+          return pw.TableRow(children: [
+            _celdaDato(nombre),
+            _celdaDato(tipo),
+            _celdaDato(talla.toString()),
+            _celdaDato(total),
+            _celdaDato(disponibles),
+            _celdaDato(alquiladas),
+            _celdaDato(mantenimiento),
+          ]);
+        }).toList(),
+      ],
+    );
+  }
+
   pw.Widget _celdaEncabezado(String texto) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(8),
@@ -713,8 +766,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       );
                     }),
                   ],
-                )
-              else if (_tipoReporte == 'ventas' &&
+                ),
+              if (_tipoReporte == 'ventas' &&
                   (datos['ventas'] as List).isNotEmpty)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -735,6 +788,31 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
                           '• $fecha - $cliente - ${currencyFormat.format(monto)}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              if (_tipoReporte == 'inventario' &&
+                  (datos['articulos'] as List).isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    const Text('Primeros 5 artículos:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...(datos['articulos'] as List).take(5).map((art) {
+                      final nombre = art['nombre'] ?? 'N/A';
+                      final tipo = art['tipo'] ?? '';
+                      final cantidad = art['cantidad'] ?? 0;
+                      final disponibles = art['cantidad_disponible'] ?? 0;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '• $nombre ($tipo) - $cantidad total, $disponibles disponibles',
                           style: const TextStyle(fontSize: 12),
                         ),
                       );
@@ -787,8 +865,6 @@ class _ReportesScreenState extends State<ReportesScreen> {
         return 'Ventas';
       case 'inventario':
         return 'Inventario';
-      case 'clientes':
-        return 'Clientes';
       default:
         return 'Reporte';
     }

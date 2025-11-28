@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/alquileres_provider.dart';
 import '../../providers/clientes_provider.dart';
 import '../../providers/inventario_provider.dart';
+import '../../providers/config_provider.dart';
 import '../../models/cliente.dart';
 import '../../models/articulo.dart';
 import '../../models/traje.dart';
@@ -35,7 +36,6 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
     super.initState();
     debugPrint('CrearAlquilerScreen.initState');
     _cargarDatos();
-    _garantiaController.text = '50.00';
   }
 
   Future<void> _cargarDatos() async {
@@ -43,13 +43,23 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
         Provider.of<ClientesProvider>(context, listen: false);
     final inventarioProvider =
         Provider.of<InventarioProvider>(context, listen: false);
+    final configProvider = Provider.of<ConfigProvider>(context, listen: false);
 
     await Future.wait([
       clientesProvider.cargarClientes(),
       inventarioProvider.cargarArticulos(),
       inventarioProvider.cargarTrajes(),
+      configProvider.cargarConfiguracion(),
     ]);
     if (!mounted) return;
+
+    // Prefill garantía from configuration (model fields are non-nullable)
+    final cfg = configProvider.configuracion;
+    if (cfg != null) {
+      _garantiaController.text = cfg.garantiaDefault.toStringAsFixed(2);
+    } else {
+      _garantiaController.text = '0.00';
+    }
   }
 
   double get _totalAlquiler {

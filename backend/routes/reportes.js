@@ -134,4 +134,25 @@ router.post('/ventas', async (req, res) => {
   }
 });
 
+// Generar reporte de inventario (actual)
+router.post('/inventario', async (req, res) => {
+  try {
+    // Para inventario no usamos fecha_inicio/fin; devolvemos el estado actual
+    const { data, error } = await supabase
+      .from('articulos')
+      .select('id, nombre, tipo, talla, cantidad, cantidad_disponible, cantidad_alquilada, cantidad_mantenimiento')
+      .order('nombre', { ascending: true });
+
+    if (error) throw error;
+
+    // Calcular totales simples
+    const total_articulos = (data || []).length;
+    const total_unidades = (data || []).reduce((sum, a) => sum + (a.cantidad || 0), 0);
+
+    res.json({ articulos: data, total_articulos, total_unidades });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
