@@ -397,4 +397,31 @@ router.post('/trajes', async (req, res) => {
   }
 });
 
+// Eliminar traje (borrar asociaciones y el registro de traje)
+router.delete('/trajes/:id', async (req, res) => {
+  try {
+    const trajeId = req.params.id;
+
+    // Primero eliminar asociaciones en traje_articulos
+    const { error: delAssocErr } = await supabase
+      .from('traje_articulos')
+      .delete()
+      .eq('traje_id', trajeId);
+
+    if (delAssocErr) throw delAssocErr;
+
+    // Luego eliminar el propio traje
+    const { error: delTrajeErr } = await supabase
+      .from('trajes')
+      .delete()
+      .eq('id', trajeId);
+
+    if (delTrajeErr) throw delTrajeErr;
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
