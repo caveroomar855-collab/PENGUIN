@@ -88,6 +88,10 @@ router.post('/', async (req, res) => {
       observaciones 
     } = req.body;
 
+    // Require cliente_id to avoid anonymous rentals
+    if (!cliente_id) {
+      return res.status(400).json({ error: 'cliente_id es obligatorio' });
+    }
     console.log('Artículos a alquilar:', articulos);
 
     // Crear alquiler

@@ -93,14 +93,11 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                            '${art?.tipo ?? ''} - ${art?.talla ?? ''} (${art?.codigo ?? ''})',
+                            '${art?.tipo ?? ''} - ${art?.talla ?? ''} - ${art?.nombre ?? ''}',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: disabled ? Colors.grey : null)),
                         const SizedBox(height: 4),
-                        Text('${art?.color ?? ''}',
-                            style: TextStyle(
-                                color: disabled ? Colors.grey : null)),
                         Text('Disponibles: $max',
                             style: TextStyle(
                                 color: Colors.grey[600], fontSize: 12)),
@@ -125,18 +122,21 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                                     if (state == 'completo') {
                                       selCompleto[artId] =
                                           (selCompleto[artId] ?? 0) - 1;
-                                      if (selCompleto[artId]! <= 0)
+                                      if (selCompleto[artId]! <= 0) {
                                         selCompleto.remove(artId);
+                                      }
                                     } else if (state == 'danado') {
                                       selDanado[artId] =
                                           (selDanado[artId] ?? 0) - 1;
-                                      if (selDanado[artId]! <= 0)
+                                      if (selDanado[artId]! <= 0) {
                                         selDanado.remove(artId);
+                                      }
                                     } else {
                                       selPerdido[artId] =
                                           (selPerdido[artId] ?? 0) - 1;
-                                      if (selPerdido[artId]! <= 0)
+                                      if (selPerdido[artId]! <= 0) {
                                         selPerdido.remove(artId);
+                                      }
                                     }
                                   });
                                 },
@@ -256,25 +256,28 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
 
       final List<Map<String, dynamic>> articulosPayload = [];
       selCompleto.forEach((k, v) {
-        if (v > 0)
+        if (v > 0) {
           articulosPayload.add({
             'articulo_id': k,
             'estado_devolucion': 'completo',
             'cantidad': v
           });
+        }
       });
       selDanado.forEach((k, v) {
-        if (v > 0)
+        if (v > 0) {
           articulosPayload.add(
               {'articulo_id': k, 'estado_devolucion': 'danado', 'cantidad': v});
+        }
       });
       selPerdido.forEach((k, v) {
-        if (v > 0)
+        if (v > 0) {
           articulosPayload.add({
             'articulo_id': k,
             'estado_devolucion': 'perdido',
             'cantidad': v
           });
+        }
       });
 
       // Mostrar resumen y pedir confirmación antes de enviar
@@ -283,21 +286,21 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
         resumenLines.add('COMPLETO:');
         selCompleto.forEach((k, v) {
           final art = articuloDataById[k];
-          resumenLines.add('  ${art?.tipo ?? ''} ${art?.codigo ?? ''} x$v');
+          resumenLines.add('  ${art?.tipo ?? ''} ${art?.nombre ?? ''} x$v');
         });
       }
       if (selDanado.isNotEmpty) {
         resumenLines.add('CON DAÑOS:');
         selDanado.forEach((k, v) {
           final art = articuloDataById[k];
-          resumenLines.add('  ${art?.tipo ?? ''} ${art?.codigo ?? ''} x$v');
+          resumenLines.add('  ${art?.tipo ?? ''} ${art?.nombre ?? ''} x$v');
         });
       }
       if (selPerdido.isNotEmpty) {
         resumenLines.add('PERDIDO:');
         selPerdido.forEach((k, v) {
           final art = articuloDataById[k];
-          resumenLines.add('  ${art?.tipo ?? ''} ${art?.codigo ?? ''} x$v');
+          resumenLines.add('  ${art?.tipo ?? ''} ${art?.nombre ?? ''} x$v');
         });
       }
 
@@ -516,8 +519,8 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
 
                 return ListTile(
                   leading: const Icon(Icons.checkroom),
-                  title: Text('${articulo.tipo} - ${articulo.talla}'),
-                  subtitle: Text('${articulo.color} - ${articulo.codigo}'),
+                  title: Text(
+                      '${articulo.tipo} - ${articulo.talla} - ${articulo.nombre}'),
                   trailing: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

@@ -44,16 +44,7 @@ class Validators {
     return null;
   }
 
-  // Validar código de artículo (no vacío)
-  static String? validateCodigo(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'El código es obligatorio';
-    }
-    if (value.length < 3) {
-      return 'El código debe tener al menos 3 caracteres';
-    }
-    return null;
-  }
+  // Código de artículo eliminado — ya no se usa en la app
 
   // Validar precio (número positivo)
   static String? validatePrecio(String? value) {

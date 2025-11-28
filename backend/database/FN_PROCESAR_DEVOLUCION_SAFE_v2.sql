@@ -21,6 +21,7 @@ DECLARE
   v_ids uuid[];
   v_rec RECORD;
   v_affected integer;
+  v_remaining integer;
 BEGIN
   -- Validar existencia del alquiler
   PERFORM 1 FROM alquileres WHERE id = p_alquiler;
@@ -60,19 +61,15 @@ BEGIN
       v_affected := 0;
     END IF;
 
+    -- NOTE: Do NOT automatically move returned items into maintenance.
+    -- The client will explicitly put items into maintenance via inventory UI.
     IF v_estado = 'completo' THEN
-      UPDATE articulos
-      SET cantidad_mantenimiento = cantidad_mantenimiento + v_affected,
-          estado = 'mantenimiento',
-          fecha_disponible = now() + interval '24 hours'
-      WHERE id = v_articulo_id;
+      -- No automatic maintenance update for 'completo'.
+      NULL; -- intentional no-op
 
     ELSIF v_estado = 'dañado' OR v_estado = 'danado' OR v_estado = 'daniado' THEN
-      UPDATE articulos
-      SET cantidad_mantenimiento = cantidad_mantenimiento + v_affected,
-          estado = 'mantenimiento',
-          fecha_disponible = now() + interval '72 hours'
-      WHERE id = v_articulo_id;
+      -- No automatic maintenance update for damaged returns.
+      NULL; -- intentional no-op
 
     ELSIF v_estado = 'perdido' THEN
       -- Lock the row and read previous cantidad
@@ -97,14 +94,26 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- Marcar alquiler como devuelto y registrar datos
-  UPDATE alquileres
-  SET estado = 'devuelto',
-      fecha_devolucion = now(),
-      mora_cobrada = p_mora,
-      garantia_retenida = p_garantia_retenida,
-      descripcion_retencion = p_descripcion
-  WHERE id = p_alquiler;
+  -- Si no quedan unidades en estado 'alquilado', marcar alquiler como devuelto
+  SELECT COUNT(*) INTO v_remaining
+  FROM alquiler_articulos
+  WHERE alquiler_id = p_alquiler
+    AND estado = 'alquilado';
+
+  IF v_remaining = 0 THEN
+    -- Marcar alquiler como devuelto y registrar datos (mora/garantía aplican al cierre)
+    UPDATE alquileres
+    SET estado = 'devuelto',
+        fecha_devolucion = now(),
+        mora_cobrada = p_mora,
+        garantia_retenida = p_garantia_retenida,
+        descripcion_retencion = p_descripcion
+    WHERE id = p_alquiler;
+  ELSE
+    -- Parcial: dejar el alquiler abierto para que la mora siga corriendo.
+    -- No actualizar mora_cobrada ni fecha_devolucion hasta el cierre.
+    RAISE NOTICE 'Devolución parcial procesada para alquiler %; quedan % unidades alquiladas', p_alquiler, v_remaining;
+  END IF;
 
   RETURN;
 END;

@@ -251,7 +251,7 @@ class _CrearVentaScreenState extends State<CrearVentaScreen> {
                                           fontSize: 14),
                                     ),
                                     Text(
-                                      '${articulo.tipo.toUpperCase()} - ${articulo.codigo}',
+                                      '${articulo.tipo.toUpperCase()} - ${articulo.nombre}',
                                       style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey[700]),
@@ -738,8 +738,8 @@ class __DialogoSeleccionArticulosState
     final articulosFiltrados = widget.articulos.where((a) {
       final query = _filtro.toLowerCase();
       return a.nombre.toLowerCase().contains(query) ||
-          a.codigo.toLowerCase().contains(query) ||
-          a.tipo.toLowerCase().contains(query);
+          a.tipo.toLowerCase().contains(query) ||
+          (a.talla?.toLowerCase().contains(query) ?? false);
     }).toList();
 
     return AlertDialog(
@@ -781,7 +781,7 @@ class __DialogoSeleccionArticulosState
                     },
                     title: Text(articulo.nombre),
                     subtitle: Text(
-                        '${articulo.tipo.toUpperCase()} - ${articulo.codigo}\nS/ ${articulo.precioVenta.toStringAsFixed(2)}'),
+                        '${articulo.tipo.toUpperCase()} - ${articulo.nombre}\nS/ ${articulo.precioVenta.toStringAsFixed(2)}'),
                   );
                 },
               ),

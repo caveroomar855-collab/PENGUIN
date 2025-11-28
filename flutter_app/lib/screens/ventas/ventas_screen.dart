@@ -182,7 +182,7 @@ class _VentasScreenState extends State<VentasScreen> {
                               ),
                               if (art.articulo != null)
                                 Text(
-                                  '${art.articulo!.codigo} - ${art.articulo!.tipo.toUpperCase()}',
+                                  '${art.articulo!.tipo.toUpperCase()}',
                                   style: const TextStyle(
                                       fontSize: 12, color: Colors.grey),
                                 ),

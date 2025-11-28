@@ -83,31 +83,15 @@ class _InventarioScreenState extends State<InventarioScreen>
       children: [
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Buscar artículo',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  setState(() => _searchQuery = value.toLowerCase());
-                },
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFiltroChip('Todos', 'todos'),
-                    _buildFiltroChip('Disponible', 'disponible'),
-                    _buildFiltroChip('Alquilado', 'alquilado'),
-                    _buildFiltroChip('Mantenimiento', 'mantenimiento'),
-                  ],
-                ),
-              ),
-            ],
+          child: TextField(
+            decoration: const InputDecoration(
+              labelText: 'Buscar artículo',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              setState(() => _searchQuery = value.toLowerCase());
+            },
           ),
         ),
         Expanded(
@@ -117,48 +101,22 @@ class _InventarioScreenState extends State<InventarioScreen>
                 return const Center(child: CircularProgressIndicator());
               }
 
-              var articulos = provider.articulos.where((a) {
-                if (_searchQuery.isNotEmpty) {
-                  final matchSearch = a.nombre
-                          .toLowerCase()
-                          .contains(_searchQuery) ||
-                      a.codigo.toLowerCase().contains(_searchQuery) ||
-                      a.tipo.toLowerCase().contains(_searchQuery) ||
-                      (a.color?.toLowerCase().contains(_searchQuery) ?? false);
-                  if (!matchSearch) return false;
-                }
-
-                if (_filtroEstado != 'todos') {
-                  switch (_filtroEstado) {
-                    case 'disponible':
-                      return a.cantidadDisponible > 0;
-                    case 'alquilado':
-                      return a.cantidadAlquilada > 0;
-                    case 'mantenimiento':
-                      return a.cantidadMantenimiento > 0;
-                    default:
-                      return true;
-                  }
-                }
-
-                return true;
+              final articulos = provider.articulos.where((a) {
+                if (_searchQuery.isEmpty) return true;
+                return a.nombre.toLowerCase().contains(_searchQuery) ||
+                    a.tipo.toLowerCase().contains(_searchQuery) ||
+                    (a.talla?.toLowerCase().contains(_searchQuery) ?? false);
               }).toList();
 
               if (articulos.isEmpty) {
-                return Center(
+                return const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.inventory_2,
-                          size: 80, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        _searchQuery.isEmpty
-                            ? 'No hay artículos'
-                            : 'No se encontraron artículos',
-                        style:
-                            const TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
+                      Icon(Icons.inventory_2, size: 80, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('No hay artículos',
+                          style: TextStyle(fontSize: 18, color: Colors.grey)),
                     ],
                   ),
                 );
@@ -170,7 +128,84 @@ class _InventarioScreenState extends State<InventarioScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: articulos.length,
                   itemBuilder: (context, index) {
-                    return _buildArticuloCard(articulos[index]);
+                    final articulo = articulos[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 3,
+                      child: ListTile(
+                        leading: Icon(_getIconoTipo(articulo.tipo),
+                            size: 24, color: _getEstadoColor(articulo.estado)),
+                        title: Text(articulo.nombre,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                            'Stock: ${articulo.cantidadDisponible}/${articulo.cantidad}'),
+                        trailing: PopupMenuButton(
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'ver',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.visibility, size: 20),
+                                  SizedBox(width: 8),
+                                  Text('Ver'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'editar',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 20),
+                                  SizedBox(width: 8),
+                                  Text('Editar'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'mantenimiento',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.build,
+                                      size: 20, color: Colors.orange),
+                                  SizedBox(width: 8),
+                                  Text('Gestionar Mantenimiento'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'eliminar',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete,
+                                      size: 20, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Eliminar',
+                                      style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'ver':
+                                _mostrarDetalleArticulo(articulo);
+                                break;
+                              case 'editar':
+                                _mostrarDialogoEditarArticulo(articulo);
+                                break;
+                              case 'mantenimiento':
+                                _mostrarDialogoMantenimiento(articulo);
+                                break;
+                              case 'eliminar':
+                                _confirmarEliminarArticulo(articulo);
+                                break;
+                            }
+                          },
+                        ),
+                        onTap: () => _mostrarDetalleArticulo(articulo),
+                      ),
+                    );
                   },
                 ),
               );
@@ -178,166 +213,6 @@ class _InventarioScreenState extends State<InventarioScreen>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFiltroChip(String label, String valor) {
-    final seleccionado = _filtroEstado == valor;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: seleccionado,
-        onSelected: (selected) {
-          setState(() => _filtroEstado = valor);
-        },
-        backgroundColor: Colors.grey[200],
-        selectedColor: _getEstadoColor(valor == 'todos' ? 'disponible' : valor),
-        labelStyle: TextStyle(
-          color: seleccionado ? Colors.white : Colors.black87,
-          fontWeight: seleccionado ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildArticuloCard(Articulo articulo) {
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    final enMantenimiento = articulo.cantidadMantenimiento > 0;
-    final disponibleEn = articulo.fechaDisponible;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 3,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getEstadoColor(articulo.estado),
-          child: Icon(
-            _getIconoTipo(articulo.tipo),
-            color: Colors.white,
-          ),
-        ),
-        title: Text(articulo.nombre,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${articulo.tipo.toUpperCase()} - ${articulo.codigo}'),
-            if (articulo.talla != null) Text('Talla: ${articulo.talla}'),
-            if (articulo.color != null) Text('Color: ${articulo.color}'),
-            Text(
-              'Stock: ${articulo.cantidadDisponible}/${articulo.cantidad} disponibles',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color:
-                    articulo.cantidadDisponible > 0 ? Colors.green : Colors.red,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                if (articulo.cantidadAlquilada > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('${articulo.cantidadAlquilada} alq.',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                if (articulo.cantidadMantenimiento > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('${articulo.cantidadMantenimiento} mant.',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                if (enMantenimiento && disponibleEn != null) ...[
-                  const SizedBox(width: 8),
-                  Text('Hasta: ${dateFormat.format(disponibleEn)}',
-                      style:
-                          const TextStyle(fontSize: 11, color: Colors.orange)),
-                ],
-              ],
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'ver',
-              child: Row(
-                children: [
-                  Icon(Icons.visibility, size: 20),
-                  SizedBox(width: 8),
-                  Text('Ver Detalles'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'editar',
-              child: Row(
-                children: [
-                  Icon(Icons.edit, size: 20),
-                  SizedBox(width: 8),
-                  Text('Editar'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'mantenimiento',
-              child: Row(
-                children: [
-                  Icon(Icons.build, size: 20, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Text('Gestionar Mantenimiento'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'eliminar',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, size: 20, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Eliminar', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
-          onSelected: (value) {
-            switch (value) {
-              case 'ver':
-                _mostrarDetalleArticulo(articulo);
-                break;
-              case 'editar':
-                _mostrarDialogoEditarArticulo(articulo);
-                break;
-              case 'mantenimiento':
-                _mostrarDialogoMantenimiento(articulo);
-                break;
-              case 'eliminar':
-                _confirmarEliminarArticulo(articulo);
-                break;
-            }
-          },
-        ),
-        onTap: () => _mostrarDetalleArticulo(articulo),
-      ),
     );
   }
 
@@ -476,7 +351,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                   size: 20, color: _getEstadoColor(articulo.estado)),
               title: Text(articulo.nombre),
               subtitle: Text(
-                  '${articulo.codigo} - Stock: ${articulo.cantidadDisponible}/${articulo.cantidad}'),
+                  '${articulo.nombre} - Stock: ${articulo.cantidadDisponible}/${articulo.cantidad}'),
               trailing: Icon(Icons.circle,
                   size: 12, color: _getEstadoColor(articulo.estado)),
               onTap: () => _mostrarDetalleArticulo(articulo),
@@ -750,12 +625,11 @@ class _InventarioScreenState extends State<InventarioScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetalleRow('Código:', articulo.codigo),
+              // Código removed per client request
               _buildDetalleRow('Tipo:', articulo.tipo.toUpperCase()),
               if (articulo.talla != null)
                 _buildDetalleRow('Talla:', articulo.talla!),
-              if (articulo.color != null)
-                _buildDetalleRow('Color:', articulo.color!),
+              // Color removed from model
               const Divider(height: 24),
               _buildDetalleRow('Precio Alquiler:',
                   currencyFormat.format(articulo.precioAlquiler)),
@@ -782,16 +656,17 @@ class _InventarioScreenState extends State<InventarioScreen>
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
           ),
-          if (articulo.estado == 'mantenimiento')
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _mostrarDialogoMantenimiento(articulo);
-              },
-              icon: const Icon(Icons.build),
-              label: const Text('Gestionar'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            ),
+          // Always allow opening the maintenance dialog so the user can
+          // put units into maintenance or remove them manually.
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _mostrarDialogoMantenimiento(articulo);
+            },
+            icon: const Icon(Icons.build),
+            label: const Text('Gestionar'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+          ),
         ],
       ),
     );
@@ -825,210 +700,283 @@ class _InventarioScreenState extends State<InventarioScreen>
     int cantidad = 1;
     final outerContext = context;
 
-    showDialog(
+    await showDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Gestionar Mantenimiento'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Artículo: ${articulo.nombre}',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text('Stock total: ${articulo.cantidad}'),
-                Text('Disponibles: ${articulo.cantidadDisponible}',
-                    style: const TextStyle(color: Colors.green)),
-                Text('En mantenimiento: ${articulo.cantidadMantenimiento}',
-                    style: const TextStyle(color: Colors.orange)),
-                Text('Alquilados: ${articulo.cantidadAlquilada}',
-                    style: const TextStyle(color: Colors.blue)),
-                const Divider(height: 24),
-                if (articulo.cantidadMantenimiento > 0) ...[
-                  const Text('Unidades en mantenimiento:',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Cantidad a quitar de mantenimiento',
-                      border: OutlineInputBorder(),
-                      helperText: 'Dejar en blanco para quitar todas',
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null &&
-                          parsed <= articulo.cantidadMantenimiento) {
-                        setDialogState(() => cantidad = parsed);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final provider = Provider.of<InventarioProvider>(
-                          outerContext,
-                          listen: false);
-                      final resultado = await provider.gestionarMantenimiento(
-                        articulo.id!,
-                        'quitar',
-                        cantidad,
-                      );
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final hasQuitar = articulo.cantidadMantenimiento > 0;
+          final hasPoner = articulo.cantidadDisponible > 0;
 
-                      if (!mounted) return;
-                      Navigator.pop(outerContext);
-                      ScaffoldMessenger.of(outerContext).showSnackBar(
-                        SnackBar(
-                          content: Text(resultado
-                              ? '$cantidad unidad(es) disponible(s) nuevamente'
-                              : 'Error al actualizar'),
-                          backgroundColor:
-                              resultado ? Colors.green : Colors.red,
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text('Quitar de Mantenimiento'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      minimumSize: const Size(double.infinity, 48),
-                    ),
-                  ),
-                  const Divider(height: 24),
-                ],
-                if (articulo.cantidadDisponible > 0) ...[
-                  const Text('Poner unidades en mantenimiento:',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: 'Cantidad',
-                      border: const OutlineInputBorder(),
-                      helperText: 'Máximo: ${articulo.cantidadDisponible}',
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null &&
-                          parsed > 0 &&
-                          parsed <= articulo.cantidadDisponible) {
-                        setDialogState(() => cantidad = parsed);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('¿Por cuánto tiempo?'),
+          return AlertDialog(
+            title: const Text('Gestionar Mantenimiento'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Artículo: ${articulo.nombre}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  RadioListTile<int>(
-                    dense: true,
-                    title: const Text('24 horas'),
-                    value: 24,
-                    groupValue: indefinido ? null : horas,
-                    onChanged: indefinido
-                        ? null
-                        : (value) {
-                            setDialogState(() => horas = value);
-                          },
-                  ),
-                  RadioListTile<int>(
-                    dense: true,
-                    title: const Text('72 horas'),
-                    value: 72,
-                    groupValue: indefinido ? null : horas,
-                    onChanged: indefinido
-                        ? null
-                        : (value) {
-                            setDialogState(() => horas = value);
-                          },
-                  ),
-                  CheckboxListTile(
-                    dense: true,
-                    title: const Text('Tiempo indefinido'),
-                    value: indefinido,
-                    onChanged: (value) {
-                      setDialogState(() => indefinido = value ?? false);
-                    },
-                  ),
-                  if (!indefinido) ...[
+                  Text('Stock total: ${articulo.cantidad}'),
+                  Text('Disponibles: ${articulo.cantidadDisponible}',
+                      style: const TextStyle(color: Colors.green)),
+                  Text('En mantenimiento: ${articulo.cantidadMantenimiento}',
+                      style: const TextStyle(color: Colors.orange)),
+                  Text('Alquilados: ${articulo.cantidadAlquilada}',
+                      style: const TextStyle(color: Colors.blue)),
+                  const Divider(height: 24),
+                  if (hasQuitar) ...[
+                    const Text('Unidades en mantenimiento:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
                     TextField(
                       decoration: const InputDecoration(
-                        labelText: 'Horas personalizadas',
+                        labelText: 'Cantidad a quitar de mantenimiento',
                         border: OutlineInputBorder(),
-                        suffixText: 'hrs',
+                        helperText: 'Dejar en blanco para quitar todas',
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (value) {
                         final parsed = int.tryParse(value);
-                        if (parsed != null) {
-                          setDialogState(() => horas = parsed);
+                        if (parsed != null &&
+                            parsed <= articulo.cantidadMantenimiento) {
+                          setDialogState(() => cantidad = parsed);
                         }
                       },
                     ),
+                    const SizedBox(height: 16),
                   ],
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      if (cantidad <= 0 ||
-                          cantidad > articulo.cantidadDisponible) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Cantidad inválida')),
-                        );
-                        return;
-                      }
-
-                      final provider = Provider.of<InventarioProvider>(
-                          outerContext,
-                          listen: false);
-                      final resultado = await provider.gestionarMantenimiento(
-                        articulo.id!,
-                        'agregar',
-                        cantidad,
-                        horasMantenimiento: indefinido ? null : horas,
-                        indefinido: indefinido,
-                      );
-
-                      if (!mounted) return;
-                      Navigator.pop(outerContext);
-                      ScaffoldMessenger.of(outerContext).showSnackBar(
-                        SnackBar(
-                          content: Text(resultado
-                              ? '$cantidad unidad(es) en mantenimiento'
-                              : 'Error al actualizar'),
-                          backgroundColor:
-                              resultado ? Colors.orange : Colors.red,
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.build),
-                    label: const Text('Poner en Mantenimiento'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      minimumSize: const Size(double.infinity, 48),
+                  if (hasPoner) ...[
+                    const Text('Poner unidades en mantenimiento:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Cantidad',
+                        border: const OutlineInputBorder(),
+                        helperText: 'Máximo: ${articulo.cantidadDisponible}',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        final parsed = int.tryParse(value);
+                        if (parsed != null &&
+                            parsed > 0 &&
+                            parsed <= articulo.cantidadDisponible) {
+                          setDialogState(() => cantidad = parsed);
+                        }
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    const Text('¿Por cuánto tiempo?'),
+                    const SizedBox(height: 8),
+                    RadioListTile<int>(
+                      dense: true,
+                      title: const Text('24 horas'),
+                      value: 24,
+                      groupValue: indefinido ? null : horas,
+                      onChanged: indefinido
+                          ? null
+                          : (value) {
+                              setDialogState(() => horas = value);
+                            },
+                    ),
+                    RadioListTile<int>(
+                      dense: true,
+                      title: const Text('72 horas'),
+                      value: 72,
+                      groupValue: indefinido ? null : horas,
+                      onChanged: indefinido
+                          ? null
+                          : (value) {
+                              setDialogState(() => horas = value);
+                            },
+                    ),
+                    CheckboxListTile(
+                      dense: true,
+                      title: const Text('Tiempo indefinido'),
+                      value: indefinido,
+                      onChanged: (value) {
+                        setDialogState(() => indefinido = value ?? false);
+                      },
+                    ),
+                    if (!indefinido) ...[
+                      TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Horas personalizadas',
+                          border: OutlineInputBorder(),
+                          suffixText: 'hrs',
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          final parsed = int.tryParse(value);
+                          if (parsed != null) {
+                            setDialogState(() => horas = parsed);
+                          }
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                  ],
+                  if (hasQuitar || hasPoner)
+                    Row(
+                      children: [
+                        if (hasQuitar)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                // Confirm intention before removing from maintenance
+                                final cantidadToRemove = (cantidad <= 0)
+                                    ? articulo.cantidadMantenimiento
+                                    : cantidad;
+                                final confirm = await showDialog<bool>(
+                                      context: outerContext,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Confirmar'),
+                                        content: Text(
+                                            '¿Estás seguro que quieres quitar $cantidadToRemove unidad(es) de mantenimiento de "${articulo.nombre}" y devolverlas a disponible?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Confirmar'),
+                                          ),
+                                        ],
+                                      ),
+                                    ) ??
+                                    false;
+
+                                if (!confirm) return;
+
+                                final provider =
+                                    Provider.of<InventarioProvider>(
+                                        outerContext,
+                                        listen: false);
+                                final resultado =
+                                    await provider.gestionarMantenimiento(
+                                  articulo.id!,
+                                  'quitar',
+                                  cantidadToRemove,
+                                );
+
+                                if (!mounted) return;
+                                Navigator.pop(outerContext);
+                                ScaffoldMessenger.of(outerContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text(resultado
+                                        ? '$cantidadToRemove unidad(es) disponible(s) nuevamente'
+                                        : 'Error al actualizar'),
+                                    backgroundColor:
+                                        resultado ? Colors.green : Colors.red,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.check_circle),
+                              label: const Text('Quitar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                minimumSize: const Size(double.infinity, 48),
+                              ),
+                            ),
+                          ),
+                        if (hasQuitar && hasPoner) const SizedBox(width: 12),
+                        if (hasPoner)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                if (cantidad <= 0 ||
+                                    cantidad > articulo.cantidadDisponible) {
+                                  ScaffoldMessenger.of(dialogContext)
+                                      .showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Cantidad inválida')),
+                                  );
+                                  return;
+                                }
+
+                                // Confirm intention before putting into maintenance
+                                final confirm = await showDialog<bool>(
+                                      context: outerContext,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Confirmar'),
+                                        content: Text(
+                                            '¿Estás seguro que quieres poner $cantidad unidad(es) de "${articulo.nombre}" en mantenimiento${indefinido ? ' (indefinido)' : ' por $horas horas'}?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Cancelar'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Confirmar'),
+                                          ),
+                                        ],
+                                      ),
+                                    ) ??
+                                    false;
+
+                                if (!confirm) return;
+
+                                final provider =
+                                    Provider.of<InventarioProvider>(
+                                        outerContext,
+                                        listen: false);
+                                final resultado =
+                                    await provider.gestionarMantenimiento(
+                                  articulo.id!,
+                                  'agregar',
+                                  cantidad,
+                                  horasMantenimiento: indefinido ? null : horas,
+                                  indefinido: indefinido,
+                                );
+
+                                if (!mounted) return;
+                                Navigator.pop(outerContext);
+                                ScaffoldMessenger.of(outerContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text(resultado
+                                        ? '$cantidad unidad(es) en mantenimiento'
+                                        : 'Error al actualizar'),
+                                    backgroundColor:
+                                        resultado ? Colors.orange : Colors.red,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.build),
+                              label: const Text('Poner'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                minimumSize: const Size(double.infinity, 48),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                 ],
-              ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   Future<void> _mostrarDialogoCrearArticulo() async {
-    final codigoController = TextEditingController();
     final nombreController = TextEditingController();
     String tipo = 'saco';
     final tallaController = TextEditingController();
-    final colorController = TextEditingController();
     final cantidadController = TextEditingController(text: '1');
     final precioAlquilerController = TextEditingController();
     final precioVentaController = TextEditingController();
@@ -1043,14 +991,7 @@ class _InventarioScreenState extends State<InventarioScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: codigoController,
-                  decoration: const InputDecoration(
-                    labelText: 'Código *',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
+                // Código input removed per client request
                 TextField(
                   controller: nombreController,
                   decoration: const InputDecoration(
@@ -1084,14 +1025,6 @@ class _InventarioScreenState extends State<InventarioScreen>
                   controller: tallaController,
                   decoration: const InputDecoration(
                     labelText: 'Talla',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: colorController,
-                  decoration: const InputDecoration(
-                    labelText: 'Color',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -1135,8 +1068,7 @@ class _InventarioScreenState extends State<InventarioScreen>
             ),
             ElevatedButton(
               onPressed: () async {
-                if (codigoController.text.isEmpty ||
-                    nombreController.text.isEmpty ||
+                if (nombreController.text.isEmpty ||
                     cantidadController.text.isEmpty ||
                     precioAlquilerController.text.isEmpty ||
                     precioVentaController.text.isEmpty) {
@@ -1157,15 +1089,11 @@ class _InventarioScreenState extends State<InventarioScreen>
                 }
 
                 final nuevoArticulo = Articulo(
-                  codigo: codigoController.text,
                   nombre: nombreController.text,
                   tipo: tipo,
                   talla: tallaController.text.isEmpty
                       ? null
                       : tallaController.text,
-                  color: colorController.text.isEmpty
-                      ? null
-                      : colorController.text,
                   cantidad: cantidad,
                   cantidadDisponible: cantidad,
                   precioAlquiler: double.parse(precioAlquilerController.text),
@@ -1200,7 +1128,6 @@ class _InventarioScreenState extends State<InventarioScreen>
   Future<void> _mostrarDialogoEditarArticulo(Articulo articulo) async {
     final nombreController = TextEditingController(text: articulo.nombre);
     final tallaController = TextEditingController(text: articulo.talla ?? '');
-    final colorController = TextEditingController(text: articulo.color ?? '');
     final precioAlquilerController =
         TextEditingController(text: articulo.precioAlquiler.toString());
     final precioVentaController =
@@ -1226,14 +1153,6 @@ class _InventarioScreenState extends State<InventarioScreen>
                 controller: tallaController,
                 decoration: const InputDecoration(
                   labelText: 'Talla',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: colorController,
-                decoration: const InputDecoration(
-                  labelText: 'Color',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1279,13 +1198,10 @@ class _InventarioScreenState extends State<InventarioScreen>
 
               final articuloActualizado = Articulo(
                 id: articulo.id,
-                codigo: articulo.codigo,
                 nombre: nombreController.text,
                 tipo: articulo.tipo,
                 talla:
                     tallaController.text.isEmpty ? null : tallaController.text,
-                color:
-                    colorController.text.isEmpty ? null : colorController.text,
                 precioAlquiler: double.parse(precioAlquilerController.text),
                 precioVenta: double.parse(precioVentaController.text),
                 estado: articulo.estado,
@@ -1617,8 +1533,8 @@ class __DialogoSeleccionarArticulosTrajeState
     final articulosFiltrados = widget.articulosDisponibles.where((a) {
       final query = _filtro.toLowerCase();
       return a.nombre.toLowerCase().contains(query) ||
-          a.codigo.toLowerCase().contains(query) ||
-          a.tipo.toLowerCase().contains(query);
+          a.tipo.toLowerCase().contains(query) ||
+          (a.talla?.toLowerCase().contains(query) ?? false);
     }).toList();
 
     return AlertDialog(
@@ -1652,8 +1568,7 @@ class __DialogoSeleccionarArticulosTrajeState
                     value: seleccionado,
                     title: Text(articulo.nombre),
                     subtitle: Text(
-                      '${articulo.tipo} - ${articulo.talla} - ${articulo.color}\nStock: ${articulo.cantidadDisponible}',
-                    ),
+                        '${articulo.tipo} - ${articulo.talla} - ${articulo.nombre}\nStock: ${articulo.cantidadDisponible}'),
                     secondary: Icon(_getIconoTipo(articulo.tipo)),
                     onChanged: (checked) {
                       setState(() {

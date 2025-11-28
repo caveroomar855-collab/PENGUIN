@@ -160,25 +160,28 @@ router.get('/trajes/:id', async (req, res) => {
 // Crear artículo
 router.post('/articulos', async (req, res) => {
   try {
-    const { 
-      codigo, 
-      nombre, 
-      tipo, 
-      talla, 
+    const {
+      codigo,
+      nombre,
+      tipo,
+      talla,
       color,
       cantidad = 1,
-      precio_alquiler, 
-      precio_venta 
+      precio_alquiler,
+      precio_venta
     } = req.body;
+
+    // If codigo not provided (client removed the field), generate an automatic code
+    const codigoFinal = codigo || `AUTO-${Date.now().toString(36)}`;
 
     const { data, error } = await supabase
       .from('articulos')
       .insert([{
-        codigo,
+        codigo: codigoFinal,
         nombre,
         tipo,
         talla,
-        color,
+        color: color || null,
         cantidad,
         cantidad_disponible: cantidad,
         cantidad_alquilada: 0,

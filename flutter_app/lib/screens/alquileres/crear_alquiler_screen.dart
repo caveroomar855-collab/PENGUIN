@@ -539,7 +539,7 @@ class _CrearAlquilerScreenState extends State<CrearAlquilerScreen> {
                       title: Text(articulo.nombre,
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                          '${articulo.tipo.toUpperCase()} - ${articulo.codigo}'),
+                          '${articulo.tipo.toUpperCase()} - ${articulo.nombre}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -733,8 +733,8 @@ class __DialogoSeleccionArticulosState
     final articulosFiltrados = widget.articulos.where((a) {
       final query = _filtro.toLowerCase();
       return a.nombre.toLowerCase().contains(query) ||
-          a.codigo.toLowerCase().contains(query) ||
-          a.tipo.toLowerCase().contains(query);
+          a.tipo.toLowerCase().contains(query) ||
+          (a.talla?.toLowerCase().contains(query) ?? false);
     }).toList();
 
     return AlertDialog(
@@ -785,7 +785,7 @@ class __DialogoSeleccionArticulosState
                                         fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 4),
                                 Text(
-                                    '${articulo.tipo.toUpperCase()} - ${articulo.codigo}\n${currencyFormat.format(precio)}'),
+                                    '${articulo.tipo.toUpperCase()} - ${articulo.nombre}\n${currencyFormat.format(precio)}'),
                               ],
                             ),
                           ),
