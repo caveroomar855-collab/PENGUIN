@@ -203,25 +203,56 @@ router.post('/articulos', async (req, res) => {
 // Actualizar artículo
 router.put('/articulos/:id', async (req, res) => {
   try {
-    const { 
-      codigo, 
-      nombre, 
-      tipo, 
-      talla, 
-      precio_alquiler, 
-      precio_venta 
+    const {
+      codigo,
+      nombre,
+      tipo,
+      talla,
+      precio_alquiler,
+      precio_venta,
+      cantidad
     } = req.body;
+
+    // Obtener artículo actual para calcular deltas
+    const { data: articulo, error: getErr } = await supabase
+      .from('articulos')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (getErr) throw getErr;
+
+    // Si se envía cantidad y es <= 0, eliminar el artículo
+    if (typeof cantidad !== 'undefined' && Number(cantidad) <= 0) {
+      const { error: delErr } = await supabase
+        .from('articulos')
+        .delete()
+        .eq('id', req.params.id);
+      if (delErr) throw delErr;
+      return res.json({ deleted: true });
+    }
+
+    const updateData = {};
+    if (typeof codigo !== 'undefined') updateData.codigo = codigo;
+    if (typeof nombre !== 'undefined') updateData.nombre = nombre;
+    if (typeof tipo !== 'undefined') updateData.tipo = tipo;
+    if (typeof talla !== 'undefined') updateData.talla = talla;
+    if (typeof precio_alquiler !== 'undefined') updateData.precio_alquiler = precio_alquiler;
+    if (typeof precio_venta !== 'undefined') updateData.precio_venta = precio_venta;
+
+    if (typeof cantidad !== 'undefined') {
+      const nueva = Number(cantidad);
+      const actual = articulo.cantidad || 0;
+      const delta = nueva - actual;
+
+      updateData.cantidad = nueva;
+      // Ajustar cantidad_disponible con la misma diferencia (no bajar por debajo de 0)
+      updateData.cantidad_disponible = Math.max(0, (articulo.cantidad_disponible || 0) + delta);
+    }
 
     const { data, error } = await supabase
       .from('articulos')
-      .update({
-        codigo,
-        nombre,
-        tipo,
-        talla,
-        precio_alquiler,
-        precio_venta
-      })
+      .update(updateData)
       .eq('id', req.params.id)
       .select()
       .single();

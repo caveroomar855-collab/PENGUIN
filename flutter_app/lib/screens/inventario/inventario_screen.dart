@@ -726,25 +726,8 @@ class _InventarioScreenState extends State<InventarioScreen>
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
 
-                    // Quitar unidades de mantenimiento (si aplica)
-                    if (hasQuitar) ...[
-                      TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Cantidad a quitar de mantenimiento',
-                          border: OutlineInputBorder(),
-                          helperText: 'Dejar en blanco para quitar todas',
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          final parsed = int.tryParse(value);
-                          if (parsed != null &&
-                              parsed <= articulo.cantidadMantenimiento) {
-                            setDialogState(() => cantidad = parsed);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+                    // (Removed single-field 'quitar' box — management uses the
+                    // unified 'Gestionar Unidades en Mantenimiento' flow below.)
 
                     // Poner unidades en mantenimiento (si aplica)
                     if (hasPoner) ...[
@@ -957,6 +940,176 @@ class _InventarioScreenState extends State<InventarioScreen>
                           ),
                       ],
                     ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 24),
+                  const SizedBox(height: 8),
+                  const Text('Ajustar Stock',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    key: const Key('stock_adjust_amount'),
+                    decoration: InputDecoration(
+                      labelText: 'Cantidad',
+                      border: const OutlineInputBorder(),
+                      helperText: 'Máximo: ${articulo.cantidad}',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      final parsed = int.tryParse(value);
+                      if (parsed != null && parsed > 0) {
+                        setDialogState(() => cantidad = parsed);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (cantidad <= 0) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Cantidad inválida')),
+                              );
+                              return;
+                            }
+
+                            // If removing equal or more than total, confirm deletion
+                            if (cantidad >= articulo.cantidad) {
+                              final confirm = await showDialog<bool>(
+                                    context: outerContext,
+                                    builder: (ctx) => AlertDialog(
+                                      title:
+                                          const Text('Confirmar eliminación'),
+                                      content: Text(
+                                          'Vas a quitar ${cantidad} unidad(es). El artículo "${articulo.nombre}" quedará con 0 unidades y se eliminará. ¿Continuar?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('Cancelar'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red),
+                                          child: const Text('Eliminar'),
+                                        ),
+                                      ],
+                                    ),
+                                  ) ??
+                                  false;
+
+                              if (!confirm) return;
+
+                              final provider = Provider.of<InventarioProvider>(
+                                  outerContext,
+                                  listen: false);
+                              final deleted =
+                                  await provider.eliminarArticulo(articulo.id!);
+                              if (!mounted) return;
+                              Navigator.pop(outerContext);
+                              ScaffoldMessenger.of(outerContext).showSnackBar(
+                                SnackBar(
+                                  content: Text(deleted
+                                      ? 'Artículo eliminado'
+                                      : 'Error eliminando'),
+                                  backgroundColor:
+                                      deleted ? Colors.green : Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Otherwise just decrease cantidad
+                            final nuevaCantidad = articulo.cantidad - cantidad;
+                            final articuloActualizado = Articulo(
+                              id: articulo.id,
+                              nombre: articulo.nombre,
+                              tipo: articulo.tipo,
+                              talla: articulo.talla,
+                              precioAlquiler: articulo.precioAlquiler,
+                              precioVenta: articulo.precioVenta,
+                              estado: articulo.estado,
+                              fechaDisponible: articulo.fechaDisponible,
+                              cantidad: nuevaCantidad,
+                            );
+
+                            final provider = Provider.of<InventarioProvider>(
+                                outerContext,
+                                listen: false);
+                            final resultado = await provider.actualizarArticulo(
+                                articulo.id!, articuloActualizado);
+                            if (!mounted) return;
+                            Navigator.pop(outerContext);
+                            ScaffoldMessenger.of(outerContext).showSnackBar(
+                              SnackBar(
+                                content: Text(resultado
+                                    ? 'Cantidad actualizada'
+                                    : 'Error al actualizar'),
+                                backgroundColor:
+                                    resultado ? Colors.green : Colors.red,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.remove_circle_outline),
+                          label: const Text('Quitar'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (cantidad <= 0) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Cantidad inválida')),
+                              );
+                              return;
+                            }
+
+                            final nuevaCantidad = articulo.cantidad + cantidad;
+                            final articuloActualizado = Articulo(
+                              id: articulo.id,
+                              nombre: articulo.nombre,
+                              tipo: articulo.tipo,
+                              talla: articulo.talla,
+                              precioAlquiler: articulo.precioAlquiler,
+                              precioVenta: articulo.precioVenta,
+                              estado: articulo.estado,
+                              fechaDisponible: articulo.fechaDisponible,
+                              cantidad: nuevaCantidad,
+                            );
+
+                            final provider = Provider.of<InventarioProvider>(
+                                outerContext,
+                                listen: false);
+                            final resultado = await provider.actualizarArticulo(
+                                articulo.id!, articuloActualizado);
+                            if (!mounted) return;
+                            Navigator.pop(outerContext);
+                            ScaffoldMessenger.of(outerContext).showSnackBar(
+                              SnackBar(
+                                content: Text(resultado
+                                    ? 'Cantidad actualizada'
+                                    : 'Error al actualizar'),
+                                backgroundColor:
+                                    resultado ? Colors.green : Colors.red,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.add_circle_outline),
+                          label: const Text('Agregar'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
