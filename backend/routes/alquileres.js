@@ -253,10 +253,17 @@ router.post('/:id/devolucion', async (req, res) => {
       throw rpcError;
     }
 
-    // Recuperar alquiler actualizado para devolver al cliente
+    // Recuperar alquiler actualizado (incluye articulos y cliente) para devolver al cliente
     const { data: updatedAlquiler, error: updatedError } = await supabase
       .from('alquileres')
-      .select('*')
+      .select(`
+        *,
+        clientes(dni, nombre, telefono),
+        alquiler_articulos(
+          *,
+          articulos(*)
+        )
+      `)
       .eq('id', req.params.id)
       .single();
 

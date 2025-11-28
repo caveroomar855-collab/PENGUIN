@@ -41,11 +41,14 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
     if (_alquiler == null) return;
     // Nuevo diálogo: tres secciones (Completo, Con daños, Perdido)
     // Agrupar unidades por articulo_id
+    // Count only units that are still 'alquilado' (available to return)
     final Map<String, int> available = {};
     final Map<String, dynamic> articuloDataById = {};
     for (final a in _alquiler!.articulos) {
       final id = a.articuloId;
-      available[id] = (available[id] ?? 0) + 1;
+      if (a.estado.toLowerCase() == 'alquilado') {
+        available[id] = (available[id] ?? 0) + 1;
+      }
       if (articuloDataById[id] == null) articuloDataById[id] = a.articulo;
     }
 
@@ -189,21 +192,22 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                   initiallyExpanded: true,
                   children: [
                     for (final artId in available.keys)
-                      buildArticleRow(artId, 'completo')
+                      // Skip rows with zero available units (already fully returned)
+                      if ((available[artId] ?? 0) > 0) buildArticleRow(artId, 'completo')
                   ],
                 ),
                 ExpansionTile(
                   title: const Text('CON DAÑOS'),
                   children: [
                     for (final artId in available.keys)
-                      buildArticleRow(artId, 'danado')
+                      if ((available[artId] ?? 0) > 0) buildArticleRow(artId, 'danado')
                   ],
                 ),
                 ExpansionTile(
                   title: const Text('PERDIDO'),
                   children: [
                     for (final artId in available.keys)
-                      buildArticleRow(artId, 'perdido')
+                      if ((available[artId] ?? 0) > 0) buildArticleRow(artId, 'perdido')
                   ],
                 ),
                 const Divider(),
@@ -304,34 +308,46 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
         });
       }
 
-      final confirmar = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Confirmar Devolución'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...resumenLines.map((l) => Text(l)),
-                const SizedBox(height: 12),
-                if (retenerGarantia)
-                  Text('Se retendrá la garantía',
-                      style: TextStyle(color: Colors.orange[800])),
-              ],
-            ),
+      // If only one unit is being returned, show a minimal confirmation dialog
+      final totalSelected = articulosPayload.fold<int>(0, (s, e) => s + (e['cantidad'] as int? ?? 1));
+      bool? confirmar;
+      if (totalSelected == 1) {
+        confirmar = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirmar Devolución'),
+            content: Text(resumenLines.isNotEmpty ? resumenLines.join('\n') : 'Devolver 1 artículo?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Aceptar')),
+            ],
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar')),
-            ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Confirmar')),
-          ],
-        ),
-      );
+        );
+      } else {
+        confirmar = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirmar Devolución'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...resumenLines.map((l) => Text(l)),
+                  const SizedBox(height: 12),
+                  if (retenerGarantia)
+                    Text('Se retendrá la garantía', style: TextStyle(color: Colors.orange[800])),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirmar')),
+            ],
+          ),
+        );
+      }
 
       if (confirmar != true) return;
 
@@ -344,7 +360,8 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
 
       if (mounted) {
         if (success) {
-          Navigator.pop(context, true);
+          // Refresh the detalle screen to show updated item states (greyed returned items)
+          await _cargarDetalle();
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('Devolución registrada exitosamente')));
         } else {
