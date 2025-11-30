@@ -19,12 +19,12 @@ class WhatsappHelper {
     String mensaje;
     if (esRecordatorio) {
       mensaje =
-          "Hola *$nombreCliente*, le saludamos de la tienda de alquiler de Ternos. \n\n"
+          "Hola *$nombreCliente*, le saludamos desde Penguin Ternos, nuestra tienda de alquiler y venta de ternos. \n\n"
           "[!] Le recordamos que su alquiler vence el día *$fechaVencimiento*. "
           "Por favor tomar las precauciones para la devolución.";
     } else {
       mensaje =
-          "Hola *$nombreCliente*, le escribimos de la tienda de Ternos para consultarle...";
+          "Hola *$nombreCliente*, le escribimos desde Penguin Ternos, nuestra tienda de alñquiler y venta de ternos, para consultarle...";
     }
 
     // 3. Lanzar WhatsApp
