@@ -44,13 +44,13 @@ router.get('/historial', async (req, res) => {
     if (error) throw error;
 
     // Recorremos cada alquiler y calculamos el total real antes de enviarlo
-    const historialConTotales = data.map(alquiler => ({
+    /*const historialConTotales = data.map(alquiler => ({
       ...alquiler, // Mantenemos todos los datos originales
       // Creamos un campo nuevo 'total_final' que suma alquiler + mora
       total_final: (alquiler.monto_alquiler || 0) + (alquiler.mora || 0)
-    }));
+    }));*/
 
-    res.json(historialConTotales);
+    res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

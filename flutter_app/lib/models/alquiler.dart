@@ -9,7 +9,7 @@ class Alquiler {
   final DateTime fechaFin;
   final DateTime? fechaDevolucion;
   final double montoAlquiler;
-  final double? totalFinal;
+  //final double? totalFinal;
   final double garantia;
   final double garantiaRetenida;
   final double moraCobrada;
@@ -27,7 +27,7 @@ class Alquiler {
     required this.fechaFin,
     this.fechaDevolucion,
     required this.montoAlquiler,
-    this.totalFinal,
+    //this.totalFinal,
     required this.garantia,
     this.garantiaRetenida = 0,
     this.moraCobrada = 0,
@@ -38,7 +38,7 @@ class Alquiler {
     this.articulos = const [],
   });
 
-  /*factory Alquiler.fromJson(Map<String, dynamic> json) {
+  factory Alquiler.fromJson(Map<String, dynamic> json) {
     List<AlquilerArticulo> arts = [];
     if (json['alquiler_articulos'] != null) {
       arts = (json['alquiler_articulos'] as List)
@@ -61,9 +61,9 @@ class Alquiler {
           ? DateTime.parse(json['fecha_devolucion'])
           : null,
       montoAlquiler: double.parse(json['monto_alquiler'].toString()),
-      totalFinal: json['total_final'] != null
+      /*totalFinal: json['total_final'] != null
           ? (json['total_final'] as num).toDouble()
-          : null,
+          : null,*/
       garantia: double.parse(json['garantia'].toString()),
       garantiaRetenida: double.parse(
         json['garantia_retenida']?.toString() ?? '0',
@@ -75,9 +75,9 @@ class Alquiler {
       estado: json['estado'] ?? 'activo',
       articulos: arts,
     );
-  }*/
+  }
 
-  factory Alquiler.fromJson(Map<String, dynamic> json) {
+  /*factory Alquiler.fromJson(Map<String, dynamic> json) {
     // 1. DEBUG: Esto imprimirá en tu consola qué está llegando realmente.
     // Si ves esto en la consola, sabremos si el backend envía los datos.
     if (json['estado'] == 'devuelto') {
@@ -147,7 +147,7 @@ class Alquiler {
       estado: json['estado'] ?? 'activo',
       articulos: arts,
     );
-  }
+  }*/
 
   Map<String, dynamic> toJson() {
     return {
