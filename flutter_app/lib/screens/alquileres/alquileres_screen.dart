@@ -140,6 +140,13 @@ class _AlquileresScreenState extends State<AlquileresScreen>
     final hasMora = alquiler.isMoraVencida;
     final diasMora = alquiler.diasMora;
 
+    // --- CAMBIO 1: Definir qué monto mostrar ---
+    // Si es historial y tenemos el totalFinal (suma backend), lo usamos.
+    // Si es activo, seguimos mostrando el precio base.
+    final montoAMostrar = isActivo
+        ? alquiler.montoAlquiler
+        : (alquiler.totalFinal ?? alquiler.montoAlquiler);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
@@ -241,12 +248,26 @@ class _AlquileresScreenState extends State<AlquileresScreen>
                     '${alquiler.articulos.length} artículo(s)',
                     style: TextStyle(color: Colors.grey[700]),
                   ),
-                  Text(
+
+                  /*Text(
                     currencyFormat.format(alquiler.montoAlquiler),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
+                    ),
+                  ),*/
+
+                  Text(
+                    currencyFormat.format(montoAMostrar), // <--- AQUÍ EL CAMBIO
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      // Opcional: Cambiar color si incluye mora para destacar
+                      color: (!isActivo &&
+                              (montoAMostrar > alquiler.montoAlquiler))
+                          ? Colors.red // Rojo si pagó más de lo acordado
+                          : Colors.blue, // Azul normal
                     ),
                   ),
                 ],

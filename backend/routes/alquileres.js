@@ -42,7 +42,15 @@ router.get('/historial', async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    res.json(data);
+
+    // Recorremos cada alquiler y calculamos el total real antes de enviarlo
+    const historialConTotales = data.map(alquiler => ({
+      ...alquiler, // Mantenemos todos los datos originales
+      // Creamos un campo nuevo 'total_final' que suma alquiler + mora
+      total_final: (alquiler.monto_alquiler || 0) + (alquiler.mora || 0)
+    }));
+
+    res.json(historialConTotales);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -223,12 +231,22 @@ router.post('/:id/devolucion', async (req, res) => {
     let mora_total = 0;
     const fecha_fin = new Date(alquiler.fecha_fin);
     const fecha_devolucion = new Date();
+
+    fecha_fin.setHours(0, 0, 0, 0);
+    fecha_devolucion.setHours(0, 0, 0, 0);
+
     if (fecha_devolucion > fecha_fin) {
-      const dias_mora = Math.ceil((fecha_devolucion - fecha_fin) / (1000 * 60 * 60 * 24));
+      // Al estar ambos a las 00:00, la diferencia será exacta (6.0)
+      const diffTime = fecha_devolucion - fecha_fin;
+      const dias_mora = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      console.log(`Días de mora calculados (limpios): ${dias_mora}`); // Debería salir 6
+
       const { data: config } = await supabase
         .from('configuracion')
         .select('mora_diaria, dias_maximos_mora')
         .single();
+        
       if (config) {
         const dias_a_cobrar = Math.min(dias_mora, config.dias_maximos_mora);
         mora_total = dias_a_cobrar * config.mora_diaria;

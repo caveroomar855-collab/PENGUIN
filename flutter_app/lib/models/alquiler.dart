@@ -9,6 +9,7 @@ class Alquiler {
   final DateTime fechaFin;
   final DateTime? fechaDevolucion;
   final double montoAlquiler;
+  final double? totalFinal;
   final double garantia;
   final double garantiaRetenida;
   final double moraCobrada;
@@ -26,6 +27,7 @@ class Alquiler {
     required this.fechaFin,
     this.fechaDevolucion,
     required this.montoAlquiler,
+    this.totalFinal,
     required this.garantia,
     this.garantiaRetenida = 0,
     this.moraCobrada = 0,
@@ -59,6 +61,9 @@ class Alquiler {
           ? DateTime.parse(json['fecha_devolucion'])
           : null,
       montoAlquiler: double.parse(json['monto_alquiler'].toString()),
+      totalFinal: json['total_final'] != null
+          ? (json['total_final'] as num).toDouble()
+          : null,
       garantia: double.parse(json['garantia'].toString()),
       garantiaRetenida: double.parse(
         json['garantia_retenida']?.toString() ?? '0',
