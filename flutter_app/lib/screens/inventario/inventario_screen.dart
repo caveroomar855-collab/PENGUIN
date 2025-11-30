@@ -18,8 +18,7 @@ class _InventarioScreenState extends State<InventarioScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
-  final String _filtroEstado =
-      'todos'; // todos, disponible, alquilado, mantenimiento
+  String _filtroEstado = 'todos'; // todos, disponible, alquilado, mantenimiento
 
   @override
   void initState() {
@@ -136,13 +135,14 @@ class _InventarioScreenState extends State<InventarioScreen>
                       margin: const EdgeInsets.only(bottom: 12),
                       elevation: 3,
                       child: ListTile(
-                        leading: Icon(_getIconoTipo(articulo.tipo),
+                        leading: FaIcon(_getIconoTipo(articulo.tipo),
                             size: 24, color: _getEstadoColor(articulo.estado)),
                         title: Text(articulo.nombre,
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold)),
                         /*subtitle: Text(
                             'Stock: ${articulo.cantidadDisponible}/${articulo.cantidad}'),*/
+
                         subtitle: Text(
                           // Usamos una condición ternaria: Si tiene talla, la mostramos con un separador
                           '${articulo.talla != null && articulo.talla!.isNotEmpty ? "Talla: ${articulo.talla}  •  " : ""}Stock: ${articulo.cantidadDisponible}/${articulo.cantidad}',
@@ -177,7 +177,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                                   Icon(Icons.build,
                                       size: 20, color: Colors.orange),
                                   SizedBox(width: 8),
-                                  Text('Gestionar Mantenimiento'),
+                                  Text('Gestionar'),
                                 ],
                               ),
                             ),
@@ -335,7 +335,7 @@ class _InventarioScreenState extends State<InventarioScreen>
             ),
           ],
           onSelected: (value) {
-            if (value == 'editar') {
+            if (value == 'editar informacion') {
               _mostrarDialogoEditarTraje(traje);
             } else if (value == 'eliminar') {
               _confirmarEliminarTraje(traje);
@@ -564,7 +564,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                                 ],
                               ),
                             );
-                          }),
+                          }).toList(),
                       ],
                     ),
                   ),
@@ -579,9 +579,9 @@ class _InventarioScreenState extends State<InventarioScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        children: const [
                           Text('Total de Artículos',
                               style:
                                   TextStyle(fontSize: 14, color: Colors.grey)),
@@ -715,7 +715,7 @@ class _InventarioScreenState extends State<InventarioScreen>
           final hasPoner = articulo.cantidadDisponible > 0;
 
           return AlertDialog(
-            title: const Text('Gestionar Mantenimiento'),
+            title: const Text('Gestionar Articulo'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -992,7 +992,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                                       title:
                                           const Text('Confirmar eliminación'),
                                       content: Text(
-                                          'Vas a quitar $cantidad unidad(es). El artículo "${articulo.nombre}" quedará con 0 unidades y se eliminará. ¿Continuar?'),
+                                          'Vas a quitar ${cantidad} unidad(es). El artículo "${articulo.nombre}" quedará con 0 unidades y se eliminará. ¿Continuar?'),
                                       actions: [
                                         TextButton(
                                           onPressed: () =>
@@ -1162,7 +1162,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: tipo,
+                  value: tipo,
                   decoration: const InputDecoration(
                     labelText: 'Tipo *',
                     border: OutlineInputBorder(),
@@ -1460,15 +1460,67 @@ class _InventarioScreenState extends State<InventarioScreen>
   }
 
   Future<void> _mostrarDialogoEditarTraje(Traje traje) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Editar traje en desarrollo')),
+    // TODO: implementar edición de traje (editar nombre/descripcion/artículos)
+    // Por ahora mostramos un diálogo simple con la información básica.
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar traje'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nombre: ${traje.nombre}'),
+            const SizedBox(height: 8),
+            Text('Descripción: ${traje.descripcion ?? '-'}'),
+            const SizedBox(height: 8),
+            Text(
+                'Artículos: ${traje.articulos.map((a) => a.nombre).join(', ')}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cerrar')),
+        ],
+      ),
     );
+    // no hay acción adicional por ahora
   }
 
   Future<void> _confirmarEliminarTraje(Traje traje) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Eliminar traje en desarrollo')),
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Traje'),
+        content: Text(
+            '¿Deseas eliminar el traje "${traje.nombre}"? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Eliminar')),
+        ],
+      ),
     );
+
+    if (confirmar == true) {
+      final provider = Provider.of<InventarioProvider>(context, listen: false);
+      final resultado = await provider.eliminarTraje(traje.id!);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(resultado
+              ? 'Traje eliminado exitosamente'
+              : 'Error al eliminar traje'),
+          backgroundColor: resultado ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   Color _getEstadoColor(String estado) {
@@ -1491,6 +1543,7 @@ class _InventarioScreenState extends State<InventarioScreen>
   IconData _getIconoTipo(String tipo) {
     switch (tipo.toLowerCase()) {
       case 'saco':
+        //return Icons.checkroom;
         return FontAwesomeIcons.userTie;
       case 'chaleco':
         return FontAwesomeIcons.vest;
@@ -1498,10 +1551,8 @@ class _InventarioScreenState extends State<InventarioScreen>
         //return Icons.boy;
         return FontAwesomeIcons.person;
       case 'camisa':
-        //return Icons.dry_cleaning;
         return FontAwesomeIcons.shirt;
       case 'zapato':
-        //return Icons.directions_walk;
         return FontAwesomeIcons.shoePrints;
       case 'extra':
         return Icons.shopping_bag;
@@ -1521,15 +1572,17 @@ class _InventarioScreenState extends State<InventarioScreen>
 IconData _iconoTipoGlobal(String tipo) {
   switch (tipo.toLowerCase()) {
     case 'saco':
-      return Icons.checkroom;
+      //return Icons.checkroom;
+      return FontAwesomeIcons.userTie;
     case 'chaleco':
-      return Icons.vpn_key;
+      return FontAwesomeIcons.vest;
     case 'pantalon':
-      return Icons.boy;
+      //return Icons.boy;
+      return FontAwesomeIcons.person;
     case 'camisa':
-      return Icons.dry_cleaning;
+      return FontAwesomeIcons.shirt;
     case 'zapato':
-      return Icons.directions_walk;
+      return FontAwesomeIcons.shoePrints;
     case 'extra':
       return Icons.shopping_bag;
     default:
@@ -1768,15 +1821,15 @@ class __DialogoSeleccionarArticulosTrajeState
   IconData _getIconoTipo(String tipo) {
     switch (tipo.toLowerCase()) {
       case 'saco':
-        return FontAwesomeIcons.userTie;
+        return Icons.checkroom;
       case 'chaleco':
-        return FontAwesomeIcons.vest;
+        return Icons.vpn_key;
       case 'pantalon':
-        return FontAwesomeIcons.person;
+        return Icons.boy;
       case 'camisa':
-        return FontAwesomeIcons.shirt;
+        return Icons.dry_cleaning;
       case 'zapato':
-        return FontAwesomeIcons.shoePrints;
+        return Icons.directions_walk;
       case 'extra':
         return Icons.shopping_bag;
       default:

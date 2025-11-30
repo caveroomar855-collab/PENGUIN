@@ -365,6 +365,25 @@ class InventarioProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> eliminarTraje(String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.inventario}/trajes/$id'),
+      );
+
+      if (response.statusCode == 200) {
+        await cargarTrajes();
+        _addHistorialEntry('delete_traje', 'Traje eliminado', data: {'id': id});
+        return true;
+      }
+      debugPrint('Error eliminando traje: HTTP ${response.statusCode}');
+      return false;
+    } catch (e) {
+      debugPrint('Error eliminando traje: $e');
+      return false;
+    }
+  }
+
   // Historial helpers
   Future<void> _loadHistorial() async {
     try {
@@ -402,9 +421,8 @@ class InventarioProvider extends ChangeNotifier {
       'data': data ?? {}
     };
     _historial.insert(0, entry);
-    if (_historial.length > 1000) {
+    if (_historial.length > 1000)
       _historial.removeRange(1000, _historial.length);
-    }
     notifyListeners();
     _saveHistorial();
   }
