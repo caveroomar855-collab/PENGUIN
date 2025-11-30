@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/citas_provider.dart';
 import '../../models/cita.dart';
 import 'crear_cita_screen.dart';
+import '../../utils/whatsapp_helper.dart';
 
 class CitasScreen extends StatefulWidget {
   const CitasScreen({super.key});
@@ -295,6 +296,23 @@ class _CitasScreenState extends State<CitasScreen>
           ),
         ),
         actions: [
+          if (cita.esPendiente && cita.clienteTelefono != null)
+            TextButton.icon(
+              icon: const Icon(Icons.chat, color: Colors.green),
+              label: const Text(
+                'Avisar por WhatsApp',
+                style: TextStyle(color: Colors.green),
+              ),
+              onPressed: () {
+                // Usamos la nueva función específica para citas
+                WhatsappHelper.enviarRecordatorioCita(
+                  context: context,
+                  telefono: cita.clienteTelefono!,
+                  nombreCliente: cita.clienteNombre ?? 'Cliente',
+                  fechaHoraCita: dateFormat.format(cita.fechaHora),
+                );
+              },
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
