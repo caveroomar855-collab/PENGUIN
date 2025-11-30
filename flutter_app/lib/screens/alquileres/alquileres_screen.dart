@@ -5,6 +5,7 @@ import '../../models/alquiler.dart';
 import 'crear_alquiler_screen.dart';
 import 'detalle_alquiler_screen.dart';
 import 'package:intl/intl.dart';
+import '../../utils/whatsapp_helper.dart';
 
 class AlquileresScreen extends StatefulWidget {
   const AlquileresScreen({super.key});
@@ -140,16 +141,26 @@ class _AlquileresScreenState extends State<AlquileresScreen>
     final hasMora = alquiler.isMoraVencida;
     final diasMora = alquiler.diasMora;
 
+    // Usamos el getter que agregamos al modelo (asegúrate de tenerlo en alquiler.dart)
+    // Si da error, temporalmente usa: bool porVencer = false;
+    final porVencer = alquiler.estaPorVencer;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
+      // Si está por vencer, le damos un borde naranja suave
+      shape: porVencer && isActivo
+          ? RoundedRectangleBorder(
+              side: const BorderSide(color: Colors.orange, width: 2),
+              borderRadius: BorderRadius.circular(12))
+          : null,
       child: InkWell(
         onTap: () async {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => DetalleAlquilerScreen(alquilerId: alquiler.id!),
-            ),
+                builder: (_) =>
+                    DetalleAlquilerScreen(alquilerId: alquiler.id!)),
           );
           if (result == true) {
             _cargarDatos();
@@ -160,6 +171,7 @@ class _AlquileresScreenState extends State<AlquileresScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // --- Cabecera (Nombre y Mora) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -207,6 +219,8 @@ class _AlquileresScreenState extends State<AlquileresScreen>
                 ],
               ),
               const Divider(height: 24),
+
+              // --- Fechas ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -233,7 +247,34 @@ class _AlquileresScreenState extends State<AlquileresScreen>
                   ),
                 ],
               ),
+
+              // --- NUEVO: Botón de Alerta de Vencimiento ---
+              if (porVencer && isActivo) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      WhatsappHelper.enviarRecordatorio(
+                        context: context,
+                        telefono: alquiler.cliente?.telefono ?? '',
+                        nombreCliente: alquiler.cliente?.nombre ?? '',
+                        fechaVencimiento: dateFormat.format(alquiler.fechaFin),
+                      );
+                    },
+                    icon: const Icon(Icons.chat, size: 18),
+                    label: const Text("Vence pronto: Enviar aviso"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade100,
+                      foregroundColor: Colors.orange.shade900,
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 12),
+              // --- Pie de tarjeta (Artículos y precio) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

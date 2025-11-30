@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/clientes_provider.dart';
 import '../../models/cliente.dart';
 import '../../utils/validators.dart';
+import '../../utils/whatsapp_helper.dart';
 
 class ClientesScreen extends StatefulWidget {
   const ClientesScreen({super.key});
@@ -138,40 +139,61 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                             _restaurarCliente(cliente),
                                         tooltip: 'Restaurar',
                                       )
-                                    : PopupMenuButton(
-                                        itemBuilder: (context) => [
-                                          const PopupMenuItem(
-                                            value: 'editar',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.edit, size: 20),
-                                                SizedBox(width: 8),
-                                                Text('Editar'),
-                                              ],
-                                            ),
+                                    : Row(
+                                        mainAxisSize: MainAxisSize
+                                            .min, // Vital para que no ocupe toda la fila
+                                        children: [
+                                          // --- BOTÓN DE WHATSAPP ---
+                                          IconButton(
+                                            icon: const Icon(Icons.message,
+                                                color: Colors.green),
+                                            tooltip: 'Contactar por WhatsApp',
+                                            onPressed: () {
+                                              WhatsappHelper.enviarRecordatorio(
+                                                context: context,
+                                                telefono: cliente.telefono,
+                                                nombreCliente: cliente.nombre,
+                                                fechaVencimiento: '',
+                                                esRecordatorio:
+                                                    false, // false = Mensaje de contacto general
+                                              );
+                                            },
                                           ),
-                                          const PopupMenuItem(
-                                            value: 'eliminar',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.delete,
-                                                    size: 20,
-                                                    color: Colors.red),
-                                                SizedBox(width: 8),
-                                                Text('Eliminar',
-                                                    style: TextStyle(
-                                                        color: Colors.red)),
-                                              ],
-                                            ),
+                                          // -------------------------
+
+                                          // TU MENÚ DE OPCIONES EXISTENTE
+                                          PopupMenuButton(
+                                            itemBuilder: (context) => [
+                                              const PopupMenuItem(
+                                                value: 'editar',
+                                                child: Row(children: [
+                                                  Icon(Icons.edit, size: 20),
+                                                  SizedBox(width: 8),
+                                                  Text('Editar')
+                                                ]),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'eliminar',
+                                                child: Row(children: [
+                                                  Icon(Icons.delete,
+                                                      size: 20,
+                                                      color: Colors.red),
+                                                  SizedBox(width: 8),
+                                                  Text('Eliminar',
+                                                      style: TextStyle(
+                                                          color: Colors.red))
+                                                ]),
+                                              ),
+                                            ],
+                                            onSelected: (value) {
+                                              if (value == 'editar') {
+                                                _mostrarDialogoEditar(cliente);
+                                              } else if (value == 'eliminar') {
+                                                _confirmarEliminar(cliente);
+                                              }
+                                            },
                                           ),
                                         ],
-                                        onSelected: (value) {
-                                          if (value == 'editar') {
-                                            _mostrarDialogoEditar(cliente);
-                                          } else if (value == 'eliminar') {
-                                            _confirmarEliminar(cliente);
-                                          }
-                                        },
                                       ),
                               ),
                             );

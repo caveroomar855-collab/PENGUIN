@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/alquileres_provider.dart';
 import '../../models/alquiler.dart';
+import '../../utils/whatsapp_helper.dart';
 import 'package:intl/intl.dart';
 
 class DetalleAlquilerScreen extends StatefulWidget {
@@ -525,6 +526,29 @@ class _DetalleAlquilerScreenState extends State<DetalleAlquilerScreen> {
                   'Fecha Devolución',
                   dateFormat.format(_alquiler!.fechaDevolucion!),
                   Icons.assignment_return),
+            if (_alquiler!.estaPorVencer) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600, // Verde WhatsApp
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('AVISAR VENCIMIENTO AHORA'),
+                  onPressed: () {
+                    WhatsappHelper.enviarRecordatorio(
+                      context: context,
+                      telefono: _alquiler!.cliente?.telefono ?? '',
+                      nombreCliente: _alquiler!.cliente?.nombre ?? '',
+                      fechaVencimiento: dateFormat.format(_alquiler!.fechaFin),
+                    );
+                  },
+                ),
+              ),
+            ]
           ],
         ),
       ),

@@ -97,6 +97,21 @@ class Alquiler {
     if (!isMoraVencida) return 0;
     return DateTime.now().difference(fechaFin).inDays;
   }
+
+  bool get estaPorVencer {
+    if (fechaDevolucion != null || estado != 'activo') {
+      return false; // Ya devuelto o no activo
+    }
+
+    final hoy = DateTime.now();
+    final fechaHoy = DateTime(hoy.year, hoy.month, hoy.day);
+    final fechaVencimiento =
+        DateTime(fechaFin.year, fechaFin.month, fechaFin.day);
+
+    final diferencia = fechaVencimiento.difference(fechaHoy).inDays;
+
+    return diferencia >= 0 && diferencia <= 7;
+  }
 }
 
 class AlquilerArticulo {
