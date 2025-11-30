@@ -249,7 +249,8 @@ class _AlquileresScreenState extends State<AlquileresScreen>
                     style: TextStyle(color: Colors.grey[700]),
                   ),
                   Text(
-                    currencyFormat.format(alquiler.montoAlquiler),
+                    currencyFormat
+                        .format(alquiler.montoAlquiler + alquiler.moraCobrada),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
