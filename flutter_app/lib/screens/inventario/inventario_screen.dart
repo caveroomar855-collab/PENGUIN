@@ -18,7 +18,8 @@ class _InventarioScreenState extends State<InventarioScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
-  String _filtroEstado = 'todos'; // todos, disponible, alquilado, mantenimiento
+  final String _filtroEstado =
+      'todos'; // todos, disponible, alquilado, mantenimiento
 
   @override
   void initState() {
@@ -564,7 +565,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                       ],
                     ),
                   ),
@@ -579,9 +580,9 @@ class _InventarioScreenState extends State<InventarioScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
+                      const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text('Total de Artículos',
                               style:
                                   TextStyle(fontSize: 14, color: Colors.grey)),
@@ -992,7 +993,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                                       title:
                                           const Text('Confirmar eliminación'),
                                       content: Text(
-                                          'Vas a quitar ${cantidad} unidad(es). El artículo "${articulo.nombre}" quedará con 0 unidades y se eliminará. ¿Continuar?'),
+                                          'Vas a quitar $cantidad unidad(es). El artículo "${articulo.nombre}" quedará con 0 unidades y se eliminará. ¿Continuar?'),
                                       actions: [
                                         TextButton(
                                           onPressed: () =>
@@ -1162,7 +1163,7 @@ class _InventarioScreenState extends State<InventarioScreen>
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: tipo,
+                  initialValue: tipo,
                   decoration: const InputDecoration(
                     labelText: 'Tipo *',
                     border: OutlineInputBorder(),

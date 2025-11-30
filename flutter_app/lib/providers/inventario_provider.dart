@@ -421,8 +421,9 @@ class InventarioProvider extends ChangeNotifier {
       'data': data ?? {}
     };
     _historial.insert(0, entry);
-    if (_historial.length > 1000)
+    if (_historial.length > 1000) {
       _historial.removeRange(1000, _historial.length);
+    }
     notifyListeners();
     _saveHistorial();
   }
