@@ -38,7 +38,7 @@ class Alquiler {
     this.articulos = const [],
   });
 
-  factory Alquiler.fromJson(Map<String, dynamic> json) {
+  /*factory Alquiler.fromJson(Map<String, dynamic> json) {
     List<AlquilerArticulo> arts = [];
     if (json['alquiler_articulos'] != null) {
       arts = (json['alquiler_articulos'] as List)
@@ -69,6 +69,78 @@ class Alquiler {
         json['garantia_retenida']?.toString() ?? '0',
       ),
       moraCobrada: double.parse(json['mora_cobrada']?.toString() ?? '0'),
+      metodoPago: json['metodo_pago'],
+      observaciones: json['observaciones'],
+      descripcionRetencion: json['descripcion_retencion'],
+      estado: json['estado'] ?? 'activo',
+      articulos: arts,
+    );
+  }*/
+
+  factory Alquiler.fromJson(Map<String, dynamic> json) {
+    // 1. DEBUG: Esto imprimirá en tu consola qué está llegando realmente.
+    // Si ves esto en la consola, sabremos si el backend envía los datos.
+    if (json['estado'] == 'devuelto') {
+      print('--- DEBUG ALQUILER ${json['id']} ---');
+      print('Monto Base: ${json['monto_alquiler']}');
+      print('Mora (columna mora): ${json['mora']}');
+      print('Total Final (backend): ${json['total_final']}');
+    }
+
+    List<AlquilerArticulo> arts = [];
+    if (json['alquiler_articulos'] != null) {
+      arts = (json['alquiler_articulos'] as List)
+          .map((aa) => AlquilerArticulo.fromJson(aa))
+          .toList();
+    }
+
+    Cliente? cli;
+    if (json['clientes'] != null) {
+      cli = Cliente.fromJson(json['clientes']);
+    }
+
+    // --- LÓGICA ROBUSTA PARA LEER MORA ---
+    // Buscamos 'mora' (nombre estándar en BD) O 'mora_cobrada'
+    double moraCalculada = 0.0;
+    if (json['mora'] != null) {
+      moraCalculada = (json['mora'] as num).toDouble();
+    } else if (json['mora_cobrada'] != null) {
+      moraCalculada = (json['mora_cobrada'] as num).toDouble();
+    }
+
+    // --- LÓGICA ROBUSTA PARA LEER TOTAL ---
+    // 1. Intentamos leer lo que manda el backend
+    double? totalFinalBackend;
+    if (json['total_final'] != null) {
+      totalFinalBackend = (json['total_final'] as num).toDouble();
+    } else {
+      // 2. Si el backend mandó null, lo calculamos aquí mismo (Plan B)
+      double base = (json['monto_alquiler'] as num).toDouble();
+      totalFinalBackend = base + moraCalculada;
+    }
+
+    return Alquiler(
+      id: json['id'],
+      clienteId: json['cliente_id'],
+      cliente: cli,
+      fechaInicio: DateTime.parse(json['fecha_inicio']),
+      fechaFin: DateTime.parse(json['fecha_fin']),
+      fechaDevolucion: json['fecha_devolucion'] != null
+          ? DateTime.parse(json['fecha_devolucion'])
+          : null,
+      montoAlquiler: double.parse(json['monto_alquiler'].toString()),
+
+      // AQUI ASIGNAMOS EL VALOR CALCULADO O RECIBIDO
+      totalFinal: totalFinalBackend,
+
+      garantia: double.parse(json['garantia'].toString()),
+      garantiaRetenida: double.parse(
+        json['garantia_retenida']?.toString() ?? '0',
+      ),
+
+      // Asignamos la mora que encontramos (ya sea 'mora' o 'mora_cobrada')
+      moraCobrada: moraCalculada,
+
       metodoPago: json['metodo_pago'],
       observaciones: json['observaciones'],
       descripcionRetencion: json['descripcion_retencion'],
